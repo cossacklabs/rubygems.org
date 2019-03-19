@@ -55,7 +55,7 @@ RUN echo -e '#!/bin/sh\n\nexit 0\n' > /usr/sbin/ldconfig
 RUN chmod +x /usr/sbin/ldconfig
 
 RUN cd /root && git clone https://github.com/cossacklabs/themis.git
-RUN cd /root/themis && make && make install
+RUN cd /root/themis && git checkout 0.10.0 && make && make install
 
 RUN mkdir -p /app
 WORKDIR /app
