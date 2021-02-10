@@ -1,9 +1,9 @@
-require 'test_helper'
+require "test_helper"
 
 class RubygemTest < ActiveSupport::TestCase
   context "with a saved rubygem" do
     setup do
-      @rubygem = create(:rubygem, name: "SomeGem")
+      @rubygem = Rubygem.new(name: "SomeGem")
     end
     subject { @rubygem }
 
@@ -29,12 +29,19 @@ class RubygemTest < ActiveSupport::TestCase
 
     context "that has an invalid name already persisted" do
       setup do
+        subject.save!
         subject.update_column(:name, "_")
       end
 
       should "consider the gem valid" do
         assert subject.valid?
       end
+    end
+
+    should "be invalid with name longer than maximum field length" do
+      @rubygem.name = "r" * (Gemcutter::MAX_FIELD_LENGTH + 1)
+      refute @rubygem.valid?
+      assert_equal @rubygem.errors.messages[:name], ["is too long (maximum is 255 characters)"]
     end
 
     should "reorder versions with platforms properly" do
@@ -121,17 +128,6 @@ class RubygemTest < ActiveSupport::TestCase
       assert_equal version3_ruby, @rubygem.versions.most_recent
     end
 
-    should "can find when the first built date was" do
-      travel_to Time.zone.now do
-        create(:version, rubygem: @rubygem, number: "3.0.0", built_at: 1.day.ago)
-        create(:version, rubygem: @rubygem, number: "2.0.0", built_at: 2.days.ago)
-        create(:version, rubygem: @rubygem, number: "1.0.0", built_at: 3.days.ago)
-        create(:version, rubygem: @rubygem, number: "1.0.0.beta", built_at: 4.days.ago)
-
-        assert_equal 4.days.ago.to_date, @rubygem.first_built_date.to_date
-      end
-    end
-
     should "have a most_recent version if only a platform version exists" do
       version1 = create(:version, rubygem: @rubygem, number: "1.0.0", platform: "linux")
 
@@ -159,9 +155,9 @@ class RubygemTest < ActiveSupport::TestCase
     end
 
     should "return latest version on the basis of version number" do
-      version = create(:version, rubygem: @rubygem, number: "0.1.1", platform: 'ruby', latest: true)
-      create(:version, rubygem: @rubygem, number: "0.1.2.rc1", platform: 'ruby')
-      create(:version, rubygem: @rubygem, number: "0.1.0", platform: 'jruby', latest: true)
+      version = create(:version, rubygem: @rubygem, number: "0.1.1", platform: "ruby", latest: true)
+      create(:version, rubygem: @rubygem, number: "0.1.2.rc1", platform: "ruby")
+      create(:version, rubygem: @rubygem, number: "0.1.0", platform: "jruby", latest: true)
 
       assert_equal version, @rubygem.latest_version
     end
@@ -170,11 +166,11 @@ class RubygemTest < ActiveSupport::TestCase
       setup do
         @first_version = FactoryBot.create(:version,
           rubygem: @rubygem,
-          number: '1.0.0',
+          number: "1.0.0",
           position: 1)
         @extra_version = FactoryBot.create(:version,
           rubygem: @rubygem,
-          number: '0.1.0',
+          number: "0.1.0",
           position: 2)
       end
       should "include public versions" do
@@ -194,6 +190,7 @@ class RubygemTest < ActiveSupport::TestCase
     end
 
     should "update references in dependencies when destroyed" do
+      @rubygem.save!
       dependency = create(:dependency, rubygem: @rubygem)
 
       @rubygem.destroy
@@ -213,8 +210,8 @@ class RubygemTest < ActiveSupport::TestCase
       gem_four               = create(:rubygem)
       version_one            = create(:version, rubygem: @gem_one)
       version_two            = create(:version, rubygem: @gem_two)
-      _version_three_latest  = create(:version, rubygem: gem_three, number: '1.0')
-      version_three_earlier  = create(:version, rubygem: gem_three, number: '0.5')
+      _version_three_latest  = create(:version, rubygem: gem_three, number: "1.0")
+      version_three_earlier  = create(:version, rubygem: gem_three, number: "0.5")
       yanked_version         = create(:version, :yanked, rubygem: gem_four)
 
       create(:dependency, :runtime, version: version_one, rubygem: @dependency)
@@ -262,7 +259,7 @@ class RubygemTest < ActiveSupport::TestCase
       @rubygem = build(:rubygem, linkset: nil)
     end
 
-    ['1337', 'Snakes!'].each do |bad_name|
+    ["1337", "Snakes!"].each do |bad_name|
       should "not accept #{bad_name.inspect} as a name" do
         @rubygem.name = bad_name
         refute @rubygem.valid?
@@ -271,12 +268,12 @@ class RubygemTest < ActiveSupport::TestCase
     end
 
     should "not accept an Array as name" do
-      @rubygem.name = ['zomg']
+      @rubygem.name = ["zomg"]
       refute @rubygem.valid?
     end
 
     should "return linkset errors in #all_errors" do
-      @specification = gem_specification_from_gem_fixture('test-0.0.0')
+      @specification = gem_specification_from_gem_fixture("test-0.0.0")
       @specification.homepage = "badurl.com"
 
       assert_raise ActiveRecord::RecordInvalid do
@@ -288,7 +285,7 @@ class RubygemTest < ActiveSupport::TestCase
 
     should "return version errors in #all_errors" do
       @version = build(:version)
-      @specification = gem_specification_from_gem_fixture('test-0.0.0')
+      @specification = gem_specification_from_gem_fixture("test-0.0.0")
       @specification.authors = [3]
 
       assert_raise ActiveRecord::RecordInvalid do
@@ -300,11 +297,11 @@ class RubygemTest < ActiveSupport::TestCase
 
     should "return array of author names in #authors_array" do
       @version = build(:version)
-      assert_equal ['Joe User'], @version.authors_array
+      assert_equal ["Joe User"], @version.authors_array
     end
 
     should "return more than one error joined for #all_errors" do
-      @specification = gem_specification_from_gem_fixture('test-0.0.0')
+      @specification = gem_specification_from_gem_fixture("test-0.0.0")
       @specification.homepage = "badurl.com"
       @rubygem.name = "1337"
 
@@ -330,7 +327,7 @@ class RubygemTest < ActiveSupport::TestCase
 
       should "not be able to assign ownership when owners exist" do
         @new_user = create(:user)
-        @rubygem.ownerships.create(user: @new_user)
+        create(:ownership, rubygem: @rubygem, user: @new_user)
         @rubygem.create_ownership(@user)
         assert_equal @rubygem.reload.owners, [@new_user]
       end
@@ -398,6 +395,7 @@ class RubygemTest < ActiveSupport::TestCase
       assert_equal @rubygem.name, hash["name"]
       assert_equal @rubygem.downloads, hash["downloads"]
       assert_equal @rubygem.versions.most_recent.number, hash["version"]
+      assert_equal @rubygem.versions.most_recent.created_at.as_json, hash["version_created_at"]
       assert_equal @rubygem.versions.most_recent.downloads_count, hash["version_downloads"]
       assert_equal @rubygem.versions.most_recent.platform, hash["platform"]
       assert_equal @rubygem.versions.most_recent.authors, hash["authors"]
@@ -461,7 +459,8 @@ class RubygemTest < ActiveSupport::TestCase
             "mailing_list_uri" => "http://example.com/mail",
             "source_code_uri" => "http://example.com/code",
             "bug_tracker_uri" => "http://example.com/bugs",
-            "changelog_uri" => "http://example.com/change"
+            "changelog_uri" => "http://example.com/change",
+            "funding_uri" => "http://example.com/funding"
           }
         )
 
@@ -474,6 +473,7 @@ class RubygemTest < ActiveSupport::TestCase
         assert_equal "http://example.com/code", hash["source_code_uri"]
         assert_equal "http://example.com/bugs", hash["bug_tracker_uri"]
         assert_equal "http://example.com/change", hash["changelog_uri"]
+        assert_equal "http://example.com/funding", hash["funding_uri"]
       end
 
       should "return version documentation url if metadata and linkset docs is empty" do
@@ -482,7 +482,7 @@ class RubygemTest < ActiveSupport::TestCase
 
         hash = JSON.load(@rubygem.to_json)
 
-        assert_equal "http://www.rubydoc.info/gems/#{@rubygem.name}/#{@version.number}", hash["documentation_uri"]
+        assert_equal "https://www.rubydoc.info/gems/#{@rubygem.name}/#{@version.number}", hash["documentation_uri"]
       end
     end
 
@@ -507,7 +507,7 @@ class RubygemTest < ActiveSupport::TestCase
         @rubygem.linkset.docs = ""
         hash = JSON.load(@rubygem.to_json)
 
-        assert_equal "http://www.rubydoc.info/gems/#{@rubygem.name}/#{@version.number}", hash["documentation_uri"]
+        assert_equal "https://www.rubydoc.info/gems/#{@rubygem.name}/#{@version.number}", hash["documentation_uri"]
       end
 
       should "return a bunch of XML" do
@@ -583,13 +583,13 @@ class RubygemTest < ActiveSupport::TestCase
 
   context "with some gems and some that don't have versions" do
     setup do
-      @thin = create(:rubygem, name: 'thin', created_at: 1.year.ago,  downloads: 20)
-      @rake = create(:rubygem, name: 'rake', created_at: 1.month.ago, downloads: 10)
-      @json = create(:rubygem, name: 'json', created_at: 1.week.ago,  downloads: 5)
-      @thor = create(:rubygem, name: 'thor', created_at: 2.days.ago,  downloads: 3)
-      @rack = create(:rubygem, name: 'rack', created_at: 1.day.ago,   downloads: 2)
-      @dust = create(:rubygem, name: 'dust', created_at: 3.days.ago,  downloads: 1)
-      @haml = create(:rubygem, name: 'haml')
+      @thin = create(:rubygem, name: "thin", created_at: 1.year.ago,  downloads: 20)
+      @rake = create(:rubygem, name: "rake", created_at: 1.month.ago, downloads: 10)
+      @json = create(:rubygem, name: "json", created_at: 1.week.ago,  downloads: 5)
+      @thor = create(:rubygem, name: "thor", created_at: 2.days.ago,  downloads: 3)
+      @rack = create(:rubygem, name: "rack", created_at: 1.day.ago,   downloads: 2)
+      @dust = create(:rubygem, name: "dust", created_at: 3.days.ago,  downloads: 1)
+      @haml = create(:rubygem, name: "haml")
       @new = build(:rubygem)
 
       @gems = [@thin, @rake, @json, @thor, @rack, @dust]
@@ -620,10 +620,6 @@ class RubygemTest < ActiveSupport::TestCase
       refute @thin.pushable?
     end
 
-    should "give a count of only rubygems with versions" do
-      assert_equal 6, Rubygem.total_count
-    end
-
     should "only return the latest gems with versions" do
       assert_equal [@rack, @thor, @dust, @json, @rake],        Rubygem.latest
       assert_equal [@rack, @thor, @dust, @json, @rake, @thin], Rubygem.latest(6)
@@ -633,65 +629,73 @@ class RubygemTest < ActiveSupport::TestCase
       assert_equal [@thin, @rake, @json, @thor, @rack],        Rubygem.downloaded
       assert_equal [@thin, @rake, @json, @thor, @rack, @dust], Rubygem.downloaded(6)
     end
+
+    context ".total_count" do
+      setup { @expected_total = 6 }
+
+      should "give a count of only rubygems with versions" do
+        assert_equal @expected_total, Rubygem.total_count
+      end
+    end
   end
 
   context "when some gems exist with titles and versions" do
     setup do
-      @apple_pie = create(:rubygem, name: 'apple', downloads: 1)
-      create(:version, description: 'pie', rubygem: @apple_pie)
+      @apple_pie = create(:rubygem, name: "apple", downloads: 1)
+      create(:version, description: "pie", rubygem: @apple_pie)
 
-      @apple_crisp = create(:rubygem, name: 'apple_crisp', downloads: 10)
-      create(:version, description: 'pie', rubygem: @apple_crisp)
+      @apple_crisp = create(:rubygem, name: "apple_crisp", downloads: 10)
+      create(:version, description: "pie", rubygem: @apple_crisp)
 
-      @orange_julius = create(:rubygem, name: 'orange')
-      create(:version, description: 'julius', rubygem: @orange_julius)
+      @orange_julius = create(:rubygem, name: "orange")
+      create(:version, description: "julius", rubygem: @orange_julius)
     end
 
-    context '#legacy_search' do
+    context "#legacy_search" do
       should "find rubygems by name" do
-        assert Rubygem.legacy_search('apple').include?(@apple_pie)
-        assert Rubygem.legacy_search('orange').include?(@orange_julius)
+        assert Rubygem.legacy_search("apple").include?(@apple_pie)
+        assert Rubygem.legacy_search("orange").include?(@orange_julius)
 
-        refute Rubygem.legacy_search('apple').include?(@orange_julius)
-        refute Rubygem.legacy_search('orange').include?(@apple_pie)
+        refute Rubygem.legacy_search("apple").include?(@orange_julius)
+        refute Rubygem.legacy_search("orange").include?(@apple_pie)
       end
 
       should "find rubygems by name with extra spaces" do
-        assert Rubygem.legacy_search('apple  ').include?(@apple_pie)
-        assert Rubygem.legacy_search('orange   ').include?(@orange_julius)
-        assert_equal Rubygem.legacy_search('apple'), Rubygem.legacy_search('apple ')
+        assert Rubygem.legacy_search("apple  ").include?(@apple_pie)
+        assert Rubygem.legacy_search("orange   ").include?(@orange_julius)
+        assert_equal Rubygem.legacy_search("apple"), Rubygem.legacy_search("apple ")
 
-        refute Rubygem.legacy_search('apple  ').include?(@orange_julius)
-        refute Rubygem.legacy_search('orange   ').include?(@apple_pie)
+        refute Rubygem.legacy_search("apple  ").include?(@orange_julius)
+        refute Rubygem.legacy_search("orange   ").include?(@apple_pie)
       end
 
       should "find rubygems case insensitively" do
-        assert Rubygem.legacy_search('APPLE').include?(@apple_pie)
+        assert Rubygem.legacy_search("APPLE").include?(@apple_pie)
       end
 
       should "find rubygems with missing punctuation" do
-        assert Rubygem.legacy_search('apple crisp').include?(@apple_crisp)
-        refute Rubygem.legacy_search('apple crisp').include?(@apple_pie)
+        assert Rubygem.legacy_search("apple crisp").include?(@apple_crisp)
+        refute Rubygem.legacy_search("apple crisp").include?(@apple_pie)
       end
 
       should "sort results by number of downloads, descending" do
-        assert_equal [@apple_crisp, @apple_pie], Rubygem.legacy_search('apple')
+        assert_equal [@apple_crisp, @apple_pie], Rubygem.legacy_search("apple")
       end
     end
 
     should "find exact match by name on #name_is" do
-      assert_equal @apple_crisp, Rubygem.name_is('apple_crisp').first
+      assert_equal @apple_crisp, Rubygem.name_is("apple_crisp").first
     end
 
     should "find exact match by name with extra spaces on #name_is" do
-      assert_equal @apple_crisp, Rubygem.name_is('apple_crisp ').first
+      assert_equal @apple_crisp, Rubygem.name_is("apple_crisp ").first
     end
   end
 
   context "building a new Rubygem" do
     context "from a Gem::Specification with no dependencies" do
       setup do
-        @specification = gem_specification_from_gem_fixture('test-0.0.0')
+        @specification = gem_specification_from_gem_fixture("test-0.0.0")
         @rubygem       = Rubygem.new(name: @specification.name)
         @version       = @rubygem.find_or_initialize_version_from_spec(@specification)
         @version.sha256 = "dummy"
@@ -710,7 +714,7 @@ class RubygemTest < ActiveSupport::TestCase
 
     context "from a Gem::Specification with dependencies on unknown gems" do
       setup do
-        @specification = gem_specification_from_gem_fixture('with_dependencies-0.0.0')
+        @specification = gem_specification_from_gem_fixture("with_dependencies-0.0.0")
         @rubygem       = Rubygem.new(name: @specification.name)
         @version       = @rubygem.find_or_initialize_version_from_spec(@specification)
         @version.sha256 = "dummy"
@@ -719,18 +723,18 @@ class RubygemTest < ActiveSupport::TestCase
       should "save the gem" do
         @rubygem.update_attributes_from_gem_specification!(@version, @specification)
 
-        assert Rubygem.find_by_name('with_dependencies')
-        assert_nil Rubygem.find_by_name('thoughtbot-shoulda')
-        assert_nil Rubygem.find_by_name('rake')
+        assert Rubygem.find_by_name("with_dependencies")
+        assert_nil Rubygem.find_by_name("thoughtbot-shoulda")
+        assert_nil Rubygem.find_by_name("rake")
 
-        assert_equal ["rake", "thoughtbot-shoulda"],
+        assert_equal %w[rake thoughtbot-shoulda],
           @version.dependencies.map(&:unresolved_name).sort
       end
     end
 
     context "that was previous an unresolved dependency" do
       setup do
-        @specification = gem_specification_from_gem_fixture('with_dependencies-0.0.0')
+        @specification = gem_specification_from_gem_fixture("with_dependencies-0.0.0")
         @rubygem       = Rubygem.new(name: @specification.name)
         @version       = @rubygem.find_or_initialize_version_from_spec(@specification)
         @version.sha256 = "dummy"
@@ -751,7 +755,7 @@ class RubygemTest < ActiveSupport::TestCase
 
     context "from a Gem::Specification with pre-existing dependencies" do
       setup do
-        @specification = gem_specification_from_gem_fixture('with_dependencies-0.0.0')
+        @specification = gem_specification_from_gem_fixture("with_dependencies-0.0.0")
         Rubygem.create(name: "thoughtbot-shoulda")
         Rubygem.create(name: "rake")
 
@@ -770,8 +774,8 @@ class RubygemTest < ActiveSupport::TestCase
         assert_equal 1, @rubygem.versions.count
         assert_equal 1, @rubygem.versions_count
         assert_equal 2, @version.dependencies.count
-        assert Rubygem.exists?(name: 'thoughtbot-shoulda')
-        assert Rubygem.exists?(name: 'rake')
+        assert Rubygem.exists?(name: "thoughtbot-shoulda")
+        assert Rubygem.exists?(name: "rake")
       end
     end
 
@@ -790,29 +794,6 @@ class RubygemTest < ActiveSupport::TestCase
     end
   end
 
-  context "downloads" do
-    setup do
-      @rubygem = create(:rubygem)
-      @version = create(:version, rubygem: @rubygem)
-
-      travel_to Date.parse("2010-10-02") do
-        1.times { Download.incr(@rubygem.name, @version.full_name) }
-      end
-
-      travel_to Date.parse("2010-10-03") do
-        6.times { Download.incr(@rubygem.name, @version.full_name) }
-      end
-
-      travel_to Date.parse("2010-10-16") do
-        4.times { Download.incr(@rubygem.name, @version.full_name) }
-      end
-
-      travel_to Date.parse("2010-11-01") do
-        2.times { Download.incr(@rubygem.name, @version.full_name) }
-      end
-    end
-  end
-
   context "#protected_days" do
     setup do
       @rubygem = create(:rubygem)
@@ -824,24 +805,71 @@ class RubygemTest < ActiveSupport::TestCase
     end
   end
 
-  context ".news" do
+  context "with downloaded gems and versions created at specific times" do
     setup do
-      @rubygem1 = create(:rubygem)
-      @rubygem2 = create(:rubygem)
-      @rubygem3 = create(:rubygem)
-      create(:version, rubygem: @rubygem2, created_at: 5.days.ago)
-      create(:version, rubygem: @rubygem1, created_at: 6.days.ago)
-      create(:version, rubygem: @rubygem3, created_at: 8.days.ago)
-      @news = Rubygem.news(7.days)
+      @rubygem1 = create(:rubygem, downloads: 10)
+      @rubygem2 = create(:rubygem, downloads: 20)
+      @rubygem3 = create(:rubygem, downloads: 30)
+      create(:version, rubygem: @rubygem1, created_at: (Gemcutter::NEWS_DAYS_LIMIT - 2.days).ago)
+      create(:version, rubygem: @rubygem2, created_at: (Gemcutter::NEWS_DAYS_LIMIT - 1.day).ago)
+      create(:version, rubygem: @rubygem3, created_at: (Gemcutter::POPULAR_DAYS_LIMIT + 1.day).ago)
     end
 
-    should "not include gems updated since given days" do
-      assert_not_includes @news, @rubygem3
+    context ".news" do
+      setup do
+        @news = Rubygem.news(Gemcutter::NEWS_DAYS_LIMIT)
+      end
+
+      should "not include gems updated prior to Gemcutter::NEWS_DAYS_LIMIT days ago" do
+        assert_not_includes @news, @rubygem3
+      end
+
+      should "order by created_at of gem version" do
+        expected_order = [@rubygem1, @rubygem2]
+        assert_equal expected_order, @news
+      end
     end
 
-    should "order by created_at of gem version" do
-      expected_order = [@rubygem2, @rubygem1]
-      assert_equal expected_order, @news
+    context ".popular" do
+      setup do
+        @popular_gems = Rubygem.popular(Gemcutter::POPULAR_DAYS_LIMIT)
+      end
+
+      should "not include gems updated prior to Gemcutter::POPULAR_DAYS_LIMIT days ago" do
+        assert_not_includes @popular_gems, @rubygem3
+      end
+
+      should "order by number of downloads" do
+        expected_order = [@rubygem2, @rubygem1]
+        assert_equal expected_order, @popular_gems
+      end
+    end
+  end
+
+  context "unconfirmed ownership" do
+    setup do
+      @rubygem               = create(:rubygem)
+      @confirmed_owner       = create(:user)
+      @unconfirmed_owner     = create(:user)
+      @unconfirmed_ownership = create(:ownership, :unconfirmed, rubygem: @rubygem, user: @unconfirmed_owner)
+
+      create(:ownership, rubygem: @rubygem, user: @confirmed_owner)
+    end
+
+    context "#unconfirmed_ownerships" do
+      should "return only unconfirmed ownerships" do
+        assert_equal [@unconfirmed_ownership], @rubygem.unconfirmed_ownerships
+      end
+    end
+
+    context "#unconfirmed_ownership?" do
+      should "return false when user is confirmed owner" do
+        refute @rubygem.unconfirmed_ownership?(@confirmed_owner)
+      end
+
+      should "return true when user is unconfirmed owner" do
+        assert @rubygem.unconfirmed_ownership?(@unconfirmed_owner)
+      end
     end
   end
 end

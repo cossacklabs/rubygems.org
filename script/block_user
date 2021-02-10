@@ -1,0 +1,23 @@
+#!/usr/bin/env ruby
+
+if ARGV.empty?
+  puts "Blocks a user account so it can't be used."
+  puts "USAGE: script/block_user USERNAME"
+  exit
+end
+
+handle = ARGV.first
+puts "Blocking user #{handle}..."
+
+ENV["RAILS_ENV"] ||= "production"
+require_relative "../config/environment"
+
+begin
+  user = User.find_by!(handle: handle)
+  puts "Found user: #{user.handle} #{user.email}"
+  user.block!
+  puts "Done."
+rescue ActiveRecord::RecordNotFound
+  puts "User #{handle} not found."
+  exit 1 # return non-zero on fail
+end

@@ -1,4 +1,4 @@
-require 'test_helper'
+require "test_helper"
 
 class DashboardTest < ActionDispatch::IntegrationTest
   setup do
@@ -6,6 +6,20 @@ class DashboardTest < ActionDispatch::IntegrationTest
     cookies[:remember_token] = @user.remember_token
 
     create(:rubygem, name: "arrakis", number: "1.0.0")
+  end
+
+  test "request with array of api keys does not pass autorization" do
+    cookies[:remember_token] = nil
+    create(:api_key, user: @user, key: "1234", show_dashboard: true)
+
+    rubygem = create(:rubygem, name: "sandworm", number: "1.0.0")
+    create(:subscription, rubygem: rubygem, user: @user)
+
+    get "/dashboard.atom?api_key=1234", as: :json
+    assert page.has_content? "sandworm"
+
+    get "/dashboard.atom?api_key[]=1234&api_key[]=key1", as: :json
+    refute page.has_content? "sandworm"
   end
 
   test "gems I have pushed show on my dashboard" do
@@ -40,13 +54,7 @@ class DashboardTest < ActionDispatch::IntegrationTest
 
     get dashboard_path(format: :atom)
     assert_response :success
-    assert_equal 'application/atom+xml', response.content_type
+    assert_equal "application/atom+xml", response.media_type
     assert page.has_content? "sandworm"
-  end
-
-  test "shows announcements on dashboard" do
-    Announcement.create!(body: "hello w.")
-    get dashboard_path
-    assert page.has_content?('hello w.')
   end
 end

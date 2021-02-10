@@ -1,4 +1,5 @@
 require Rails.root.join("config", "secret") if Rails.root.join("config", "secret.rb").file?
+require_relative "../../lib/middleware/redirector"
 
 Rails.application.configure do
   # Settings specified here will take precedence over those in config/application.rb.
@@ -52,11 +53,19 @@ Rails.application.configure do
 
   # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
   config.force_ssl = true
-  config.ssl_options = { hsts: false }
+  config.ssl_options = {
+    hsts: { expires: 365.days, subdomains: false },
+    redirect: {
+      exclude: lambda do |request|
+        insecure_dependency_api = (request.host == "insecure.rubygems.org" && request.path =~ %r{^/(info|versions|api/v1/dependencies)})
+        request.path.start_with?('/internal') or insecure_dependency_api
+      end
+    }
+  }
 
   # Use the lowest log level to ensure availability of diagnostic information
   # when problems arise.
-  config.log_level = :info
+  config.log_level = ENV['RAILS_LOG_LEVEL'].present? ? ENV['RAILS_LOG_LEVEL'].to_sym : :info
 
   # Prepend all log lines with the following tags.
   # config.log_tags = [ :request_id ]
@@ -75,30 +84,35 @@ Rails.application.configure do
   config.action_mailer.default_url_options = { host: Gemcutter::HOST,
                                                protocol: Gemcutter::PROTOCOL }
 
+  # roadie-rails recommends not setting action_mailer.asset_host and use its own configuration for URL options
+  config.roadie.url_options = { host: Gemcutter::HOST, scheme: Gemcutter::PROTOCOL }
   # Enable locale fallbacks for I18n (makes lookups for any locale fall back to
   # the I18n.default_locale when a translation cannot be found).
-  config.i18n.fallbacks = true
+  config.i18n.fallbacks = [:en]
 
   # Send deprecation notices to registered listeners.
   config.active_support.deprecation = :notify
 
   # Use default logging formatter so that PID and timestamp are not suppressed.
-  config.log_formatter = ::Logger::Formatter.new
+  # config.log_formatter = ::Logger::Formatter.new
 
   # Use a different logger for distributed setups.
   # require 'syslog/logger'
   # config.logger = ActiveSupport::TaggedLogging.new(Syslog::Logger.new 'app-name')
 
-  if ENV["RAILS_LOG_TO_STDOUT"].present?
-    logger           = ActiveSupport::Logger.new(STDOUT)
-    logger.formatter = config.log_formatter
-    config.logger    = ActiveSupport::TaggedLogging.new(logger)
-  end
+  # if ENV["RAILS_LOG_TO_STDOUT"].present?
+  #   logger           = ActiveSupport::Logger.new($stdout)
+  #   logger.formatter = config.log_formatter
+  #   config.logger    = ActiveSupport::TaggedLogging.new(logger)
+  # end
+
+  # Custom logging config.
+  config.logger = ActiveSupport::Logger.new($stdout)
 
   # Do not dump schema after migrations.
   config.active_record.dump_schema_after_migration = false
 
-  config.cache_store = :dalli_store, ENV['MEMCACHED_ENDPOINT'], {
+  config.cache_store = :mem_cache_store, ENV['MEMCACHED_ENDPOINT'], {
     failover: true,
     socket_timeout: 1.5,
     socket_failure_delay: 0.2,

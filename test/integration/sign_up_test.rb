@@ -1,4 +1,4 @@
-require 'test_helper'
+require "test_helper"
 
 class SignUpTest < SystemTest
   test "sign up" do
@@ -6,17 +6,17 @@ class SignUpTest < SystemTest
 
     fill_in "Email", with: "email@person.com"
     fill_in "Username", with: "nick"
-    fill_in "Password", with: "secretpassword"
+    fill_in "Password", with: PasswordHelpers::SECURE_TEST_PASSWORD
     click_button "Sign up"
 
-    assert page.has_selector? '#flash_notice', text: "A confirmation mail has been sent to your email address."
+    assert page.has_selector? "#flash_notice", text: "A confirmation mail has been sent to your email address."
   end
 
   test "sign up with no handle" do
     visit sign_up_path
 
     fill_in "Email", with: "email@person.com"
-    fill_in "Password", with: "password"
+    fill_in "Password", with: PasswordHelpers::SECURE_TEST_PASSWORD
     click_button "Sign up"
 
     assert page.has_content? "errors prohibited"
@@ -27,7 +27,7 @@ class SignUpTest < SystemTest
 
     fill_in "Email", with: "email@person.com"
     fill_in "Username", with: "thisusernameiswaytoolongseriouslywaytoolong"
-    fill_in "Password", with: "secretpassword"
+    fill_in "Password", with: PasswordHelpers::SECURE_TEST_PASSWORD
     click_button "Sign up"
 
     assert page.has_content? "error prohibited"
@@ -39,7 +39,7 @@ class SignUpTest < SystemTest
 
     fill_in "Email", with: "email@person.com"
     fill_in "Username", with: "nick"
-    fill_in "Password", with: "secretpassword"
+    fill_in "Password", with: PasswordHelpers::SECURE_TEST_PASSWORD
     click_button "Sign up"
 
     assert page.has_content? "error prohibited"
@@ -51,9 +51,15 @@ class SignUpTest < SystemTest
 
     visit root_path
     refute page.has_content? "Sign up"
-    visit sign_up_path
-    assert_equal current_path, "/"
-    assert page.has_content? "Sign up is temporarily disabled."
+    assert_raises(ActionController::RoutingError) do
+      visit "/sign_up"
+    end
+  end
+
+  test "sign up when user param is string" do
+    assert_nothing_raised do
+      get "/sign_up?user=JJJ12QQQ"
+    end
   end
 
   test "email confirmation" do
@@ -61,7 +67,7 @@ class SignUpTest < SystemTest
 
     fill_in "Email", with: "email@person.com"
     fill_in "Username", with: "nick"
-    fill_in "Password", with: "secretpassword"
+    fill_in "Password", with: PasswordHelpers::SECURE_TEST_PASSWORD
     click_button "Sign up"
 
     link = last_email_link
@@ -69,7 +75,7 @@ class SignUpTest < SystemTest
     visit link
 
     assert page.has_content? "Sign out"
-    assert page.has_selector? '#flash_notice', text: "Your email address has been verified"
+    assert page.has_selector? "#flash_notice", text: "Your email address has been verified"
   end
 
   teardown do

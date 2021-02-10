@@ -3,17 +3,22 @@ fr:
   failure_when_forbidden: Veuillez vérifier l'URL ou réessayer.
   feed_latest: RubyGems.org | Derniers Gems
   feed_subscribed: RubyGems.org | Gems abonnés
-  footer_about: RubyGems.org est le service d&rsquo;hébergement de la communauté Ruby. Publiez vos gems instantanément et utilisez-les. Utilisez l'API pour interagir et trouver des informations sur les gems disponibles. Contribuez et améliorez ce site avec nous !
+  footer_about_html: RubyGems.org est le service d&rsquo;hébergement de la communauté Ruby. Publiez vos gems instantanément et utilisez-les. Utilisez l'API pour interagir et trouver des informations sur les gems disponibles. Contribuez et améliorez ce site avec nous !
+  footer_sponsors_html:
+  footer_join_rt_html:
   form_disable_with: Veuillez patienter...
-  help_url: http://help.rubygems.org
+  invalid_page:
   locale_name: Français
   none:
   not_found: Introuvable
+  api_key_forbidden:
   please_sign_up: Accès refusé. Inscrivez-vous sur https://rubygems.org
+  please_sign_in:
   otp_incorrect:
   otp_missing:
   sign_in: Connexion
   sign_up: Inscription
+  dependency_list:
   multifactor_authentication: Authentification Multifacteur
   subtitle: votre communauté d'hébergement des gems
   this_rubygem_could_not_be_found: Rubygem introuvable.
@@ -31,6 +36,7 @@ fr:
         docs: URL de la documentation
         mail: URL de la liste de diffusion
         wiki: URL du wiki
+        funding:
       session:
         password: Mot de passe
         who: Email ou pseudonyme
@@ -39,6 +45,47 @@ fr:
         email: Adresse e-mail
         handle: Pseudonyme
         password: Mot de passe
+    errors:
+      messages:
+        unpwn:
+        blocked:
+  api_keys:
+    create:
+      success:
+    destroy:
+      success:
+    index:
+      api_keys:
+      name:
+      scopes:
+      age:
+      last_access:
+      action:
+      delete:
+      confirm:
+      confirm_all:
+      new_key:
+      index_rubygems:
+      push_rubygem:
+      yank_rubygem:
+      add_owner:
+      remove_owner:
+      access_webhooks:
+      show_dashboard:
+      reset:
+      save_key:
+    new:
+      new_api_key:
+    reset:
+      success:
+    update:
+      success:
+    edit:
+      edit_api_key:
+  clearance_mailer:
+    change_password:
+      title:
+      subtitle:
   dashboards:
     show:
       creating_link_text: création
@@ -48,8 +95,9 @@ fr:
       migrating_link_text: migration
       mine: Mes Gems
       my_subscriptions: Abonnements
-      no_owned: Vous n'avez pas encore publié de gem. Vous pouvez vérifier les guides de %{creating_link} ou de %{migrating_link} de gems depuis RubyForge.
-      no_subscriptions: Vous n'avez pas encore d'abonnements. Visitez %{gem_link} pour vous y abonner !
+      no_owned_html: Vous n'avez pas encore publié de gem. Vous pouvez vérifier les guides de %{creating_link} ou de %{migrating_link} de gems depuis RubyForge.
+      no_subscriptions_html: Vous n'avez pas encore d'abonnements. Visitez %{gem_link} pour vous y abonner !
+      title: Dashboard
   email_confirmations:
     create:
       promise_resend: Si ce compte existe, vous recevrez un email avec un lien de confirmation pour l'activer.
@@ -61,7 +109,7 @@ fr:
       confirmed_email: Votre adresse email a été vérifiée.
   home:
     index:
-      downloads_counting: téléchargements à ce jour
+      downloads_counting_html: téléchargements à ce jour
       find_blurb: Trouvez, installez et publiez des RubyGems.
       learn:
         install_rubygems: Installez RubyGems
@@ -92,25 +140,72 @@ fr:
         uptime: Uptime
       header:
         dashboard: Dashboard
-        search_gem: Recherche de Gems&hellip;
+        edit_profile:
+        settings:
+        search_gem_html: Recherche de Gems&hellip;
         sign_in: Connexion
         sign_out: Déconnexion
         sign_up: Inscription
   mailer:
     confirm_your_email: Veuillez confirmer votre adresse email avec le lien qui vous a été envoyé par email.
     confirmation_subject: Veuillez confirmer votre adresse email pour RubyGems.org
+    link_expiration_explanation_html:
     email_confirmation:
+      title:
+      subtitle:
       confirmation_link: Confirmez l'adresse email
       welcome_message: Bienvenue sur RubyGems.org! Veuillez cliquer sur le lien ci-dessous pour vérifier votre adresse email.
     email_reset:
+      title:
+      subtitle:
       visit_link_instructions: Vous avez changé d'adresse email sur RubyGems.org. Veuillez suivre l'URL suivant pour réactiver votre compte.
-      link_expiration_explanation: Veuillez noter que ce lien n'est valide que pendant 3 heures.
     deletion_complete:
+      title:
+      subtitle:
       subject: Votre compte a bien été supprimé de RubyGems.org
-      body: "Votre demande de suppression de compte sur RubyGems.org a bien été prise en compte. Vous pouvez toujours créer un nouveau compte sur la page %{sign_up}"
+      body_html: "Votre demande de suppression de compte sur RubyGems.org a bien été prise en compte. Vous pouvez toujours créer un nouveau compte sur la page %{sign_up}"
     deletion_failed:
+      title:
+      subtitle:
       subject: Votre demande de suppression de compte sur RubyGems.org a échoué
-      body: "Vous avez effectué une demande de suppression de compte sur RubyGems.org. Malheureusement, votre demande n'a pu aboutir. Veuillez réessayer plus tard ou nous %{contact} si le problème subsiste."
+      body_html: "Vous avez effectué une demande de suppression de compte sur RubyGems.org. Malheureusement, votre demande n'a pu aboutir. Veuillez réessayer plus tard ou nous %{contact} si le problème subsiste."
+    notifiers_changed:
+      subject:
+      title:
+      subtitle:
+      'on':
+      off_html:
+    gem_pushed:
+      subject:
+      title:
+    gem_yanked:
+      subject:
+      title:
+    reset_api_key:
+      subject:
+      title:
+      subtitle:
+    email_reset_update:
+      subject:
+      title:
+    ownership_confirmation:
+      subject:
+      title:
+      subtitle:
+      body_html:
+      link_expiration_explanation_html:
+    owner_added:
+      subject_self:
+      subject_others:
+      title:
+      subtitle:
+      body_self_html:
+      body_others_html:
+    owner_removed:
+      subject:
+      title:
+      subtitle:
+      body_html:
   news:
     show:
       title: Nouvelles Versions - Toutes les Gems
@@ -120,15 +215,27 @@ fr:
       title: Nouvelles Versions - Gems populaires
   pages:
     about:
-      founding: Le projet a commencé en avril 2009 par %{founder}, et a grandi avec les contribution de %{contributors} et %{downloads}. À la sortie de RubyGems 1.3.6, ce site a été renommé de Gemcutter à %{title} pour ancrer son rôle central dans la communauté Ruby.
-      support: Bien que Gemcutter n'appartienne à aucune entreprise en particulier, il a reçu l'aide de nombreuses d'entre elles. Le design actuel, les illustrations, et développement front-end de ce site nous ont été offerts par %{dockyard}. Nous n'aurions pas pu collaborer et partager de code facilement sans %{github}. Ce site s'est lancé sur %{heroku}, dont l'excellent service a fait de Gemcutter une solution viable pour que la communauté s'y appuie en toute confiance. Our infrastructure is currently hosted on %{aws}.
-      technical: 'Quelques informations sur les aspects techniques de ce site : il est en Ruby à 100%. Le site principal est une application %{rails}. Les Gems sont hébergés sur %{s3}, served by %{fastly}, permettant un record de vitesse entre le moment de publication et de mise à disposition de gems. Pour davantage d''informations, le %{source_code} est disponible sous licence %{license} sur GitHub.'
+      founding_html: Le projet a commencé en avril 2009 par %{founder}, et a grandi avec les contribution de %{contributors} et %{downloads}. À la sortie de RubyGems 1.3.6, ce site a été renommé de Gemcutter à %{title} pour ancrer son rôle central dans la communauté Ruby.
+      support_html: Bien que Gemcutter n'appartienne à aucune entreprise en particulier, il a reçu l'aide de nombreuses d'entre elles. Le design actuel, les illustrations, et développement front-end de ce site nous ont été offerts par %{dockyard}. Nous n'aurions pas pu collaborer et partager de code facilement sans %{github}. Ce site s'est lancé sur %{heroku}, dont l'excellent service a fait de Gemcutter une solution viable pour que la communauté s'y appuie en toute confiance. Our infrastructure is currently hosted on %{aws}.
+      technical_html: 'Quelques informations sur les aspects techniques de ce site : il est en Ruby à 100%. Le site principal est une application %{rails}. Les Gems sont hébergés sur %{s3}, served by %{fastly}, permettant un record de vitesse entre le moment de publication et de mise à disposition de gems. Pour davantage d''informations, le %{source_code} est disponible sous licence %{license} sur GitHub.'
       title: À propos
       purpose:
         better_api: Fournir une meilleure API pour gérer les gems
         enable_community: Permettre à la communauté d'améliorer ce site
         header: 'Bienvenue sur %{site}, le service d''hébergement des gems de la communauté Ruby. Ce projet a trois objectifs :'
         transparent_pages: Créer des pages de projet plus accessibles et transparentes
+    data:
+      title:
+    download:
+      title:
+    faq:
+      title:
+    migrate:
+      title:
+    security:
+      title:
+    sponsors:
+      title:
   passwords:
     edit:
       submit: Enregistrer ce mot de passe
@@ -137,6 +244,8 @@ fr:
       submit: Réinitialisez votre mot de passe
       title: Changement de mot de passe
       will_email_notice: Nous vous enverrons un email pour changer votre mot de passe.
+    otp_prompt:
+      authenticate:
   multifactor_auths:
     incorrect_otp: Votre clé OTP est incorrecte.
     otp_code: clé OTP
@@ -162,28 +271,30 @@ fr:
       success: Vous avez désactivé l'authentification multifacteur.
     update:
       success:
-  profiles:
+  notifiers:
+    update:
+      success:
+    show:
+      info:
+      'on':
+      'off':
+      recommended:
+      title:
+      update:
+      push_heading:
+      owner_heading:
+  settings:
     edit:
-      email_awaiting_confirmation: Veuillez confirmer votre nouvelle adresse email %{unconfirmed_email}
-      enter_password: Veuillez entrer le mot de passe de votre compte
-      hide_email: Ne pas afficher l'email dans le profil public
-      optional_twitter_username: Nom d'utilisateur Twitter optionnel. Sera affiché publiquement
-      title: Modification de profil
+      title:
       api_access:
         confirm_reset: Êtes-vous sûr ? Cette action ne peut être annulée.
-        credentials: 'Si vous voulez utiliser %{gem_commands_link} de la ligne de commande, vous aurez besoin d''un fichier %{gem_credentials_file}, que vous pouvez générer avec la commande suivante :'
-        key_is: Votre clé API est %{key}.
+        credentials_html: 'Si vous voulez utiliser %{gem_commands_link} de la ligne de commande, vous aurez besoin d''un fichier %{gem_credentials_file}, que vous pouvez générer avec la commande suivante :'
+        key_is_html: Votre clé API est %{key}.
         link_text: des commandes gems
         reset: Remise à zéro de votre clé API
         title: Accès API
       reset_password:
-        link_text: Demandez un nouveau mot de passe ici.
-        text: Besoin d'un nouveau mot de passe ? Pas de problème. %{link}
         title: Renvoi de mot de passe
-      delete:
-        delete: Supprimer
-        delete_profile: Supprimer le profil
-        warning: La suppression de votre profil est une action irréversible. Cela ne peut pas être annulé en contactant le support. Réfléchissez-bien avant de continuer !
       mfa:
         multifactor_auth: Authentification Multifacteur
         disabled: Vous n'avez pas encore activé l'authentification multifacteur.
@@ -192,15 +303,29 @@ fr:
         update:
         level:
           title:
-          no_mfa:
-          ui_mfa_only:
-          ui_and_api_mfa:
+          disabled:
+          ui_only:
+          ui_and_api:
+          ui_and_gem_signin:
+  profiles:
+    edit:
+      change_avatar:
+      email_awaiting_confirmation: Veuillez confirmer votre nouvelle adresse email %{unconfirmed_email}
+      enter_password: Veuillez entrer le mot de passe de votre compte
+      hide_email: Ne pas afficher l'email dans le profil public
+      optional_twitter_username: Nom d'utilisateur Twitter optionnel. Sera affiché publiquement
+      title: Modification de profil
+      delete:
+        delete: Supprimer
+        delete_profile: Supprimer le profil
+        warning: La suppression de votre profil est une action irréversible. Cela ne peut pas être annulé en contactant le support. Réfléchissez-bien avant de continuer !
     delete:
       title: Supprimer le profil
       confirm: Confirmer
       instructions: Nous sommes désolés de vous voir partir. Veuillez entrer votre mot de passe dans le champ et confirmer.
-      list_only_owner: Ces gems seront effacées quand vous effacerez votre profil. Si vous désirez ajouter des propriétaires avant de supprimer votre profil, vous pouvez utiliser la commande %{command_link}.
+      list_only_owner_html: Ces gems seront effacées quand vous effacerez votre profil. Si vous désirez ajouter des propriétaires avant de supprimer votre profil, vous pouvez utiliser la commande %{command_link}.
       list_multi_owner: Vous allez perdre l'accès à ces gems mais d'autres propriétaires de ces gems y ont toujours accès.
+      warning: La suppression de votre profil est une action irréversible. Cela ne peut pas être annulé en contactant le support. Réfléchissez-bien avant de continuer !
     rubygem:
       owners_header: Propriétaires
     destroy:
@@ -230,28 +355,33 @@ fr:
         mail: Liste de diffusion
         report_abuse: Signaler un abus
         reverse_dependencies:
+        review_changes:
         rss: RSS
         subscribe: Abonnement
         unsubscribe: Désabonement
         wiki: Wiki
+        ownership:
+        resend_ownership_confirmation:
     blacklisted:
       blacklisted_namespace: Ce nom est réservé par rubygems.org.
     dependencies:
       header: Dépendances de %{title}
-    edit:
-      other_fields_notice: Tous les autres champs ne sont modifiables qu'en soumettant une nouvelle version de votre gem.
-      subtitle: pour %{gem}
-      title: Modifier les liens
-      deprecation_message: Cette page est obsolète. Veuillez utiliser Gem::Specification#metadata pour configurer ces liens. (<a href='https://guides.rubygems.org/specification-reference/#metadata' target='_blank'>read more</a>)
     gem_members:
       authors_header: Auteurs
+      not_using_mfa_warning_show:
+      not_using_mfa_warning_hide:
       owners_header: Propriétaires
+      pushed_by:
+      using_mfa_info:
+      yanked_by:
       sha_256_checksum: Total de contrôle SHA 256
     index:
       downloads: Téléchargements
       title: Gems
     show:
-      licenses_header: Licence
+      licenses_header:
+        one: License
+        other: Licenses
       no_licenses: aucune
       requirements_header: Dépendances
       show_all_versions: Voir toutes les versions (%{count})
@@ -259,14 +389,15 @@ fr:
       yanked_notice: 'Retrait de Gem : disponible ni directement, ni pour les gems qui en dépendraient.'
     show_yanked:
       not_hosted_notice: Gem non hébergé sur Rubygems pour le moment.
-      reserved_namespace:
+      reserved_namespace_html:
         one: Cette gem existait, mais a été supprimée par son propriétaire. L'équipe RubyGems.org a réservé ce nom de gem pour un jour supplémentaire. Une fois ce temps écoulé, quiconque pourra utiliser ce nom de gem en utilisant gem push. <br/> Si vous êtes le propriétaire précédent de cette gem, vous pouvez modifier la propriété de cette gem en utilisant la commande de gem owner. Vous pouvez également créer de nouvelles versions de cette gem avec gem push.
         other: Cette gem existait, mais a été supprimée par son propriétaire. L'équipe RubyGems.org a réservé ce nom de gem pour %{count} jours supplémentaires. Une fois ce temps écoulé, quiconque pourra utiliser ce nom de gem en utilisant gem push. <br/> Si vous êtes le propriétaire précédent de cette gem, vous pouvez modifier la propriété de cette gem en utilisant la commande de gem owner. Vous pouvez également créer de nouvelles versions de cette gem avec gem push.
   reverse_dependencies:
     index:
       title: "Dépendances inversées pour %{name}"
+      subtitle:
     search:
-      search_reverse_dependencies: "Chercher des dépendances inversées Gems&hellip;"
+      search_reverse_dependencies_html: "Chercher des dépendances inversées Gems&hellip;"
   searches:
     advanced:
       name: Nom
@@ -275,17 +406,23 @@ fr:
       downloads: Téléchargements
       updated: Mis à jour
     show:
-      exact_match: Titre exact
       subtitle: pour %{query}
       month_update:
       week_update:
       filter:
+      yanked:
+      suggestion:
   sessions:
     new:
       forgot_password: Mot de passe oublié ?
       resend_confirmation: Vous n'avez pas reçu l'email de confirmation ?
+    verify:
+      title:
+      confirm:
+      notice:
   stats:
     index:
+      title:
       all_time_most_downloaded: Gems les plus téléchargés
       total_downloads: Total de téléchargements
       total_gems: Total de gems
@@ -317,3 +454,28 @@ fr:
         one: "<b>1</b> %{model} affiché"
         other: Les <b>%{count}</b> %{model} affichés
         zero: Aucun %{model} trouvé
+  owners:
+    confirm:
+      confirmed_email:
+      token_expired:
+    index:
+      add_owner:
+      name:
+      mfa:
+      status:
+      confirmed_at:
+      added_by:
+      action:
+      info:
+      email_field:
+      submit_button:
+      confirmed:
+      pending:
+      confirm_remove:
+    resend_confirmation:
+      resent_notice:
+    create:
+      success_notice:
+    destroy:
+      removed_notice:
+      failed_notice:

@@ -3,17 +3,22 @@ zh-CN:
   failure_when_forbidden: 请确认 URL 或再次提交
   feed_latest: RubyGems.org | 最新 Gems
   feed_subscribed: RubyGems.org | 订阅 Gems
-  footer_about: RubyGems.org 是 Ruby 社区的 Gem 托管服务。<br />让你能便捷、快速的发布、管理你的 Gem 以及安装它们。提供 API 查阅可用 Gem 的详细资料。<br />参与进来成为一个贡献者，用你的能力推动社区进步。
+  footer_about_html: RubyGems.org 是 Ruby 社区的 Gem 托管服务。<br />让你能便捷、快速的发布、管理你的 Gem 以及安装它们。提供 API 查阅可用 Gem 的详细资料。<br />参与进来成为一个贡献者，用你的能力推动社区进步。
+  footer_sponsors_html:
+  footer_join_rt_html:
   form_disable_with: 请稍后...
-  help_url: http://help.rubygems.org
+  invalid_page:
   locale_name: 简体中文
   none: 无
   not_found: 未找到
+  api_key_forbidden:
   please_sign_up: 拒绝访问。请先在 https://rubygems.org 上注册一个账号。
+  please_sign_in:
   otp_incorrect:
   otp_missing:
   sign_in: 登录
   sign_up: 注册
+  dependency_list:
   multifactor_authentication: 多重验证
   subtitle: Ruby 社区 Gem 托管
   this_rubygem_could_not_be_found: 未找到这个 RubyGem
@@ -31,6 +36,7 @@ zh-CN:
         docs: 文档 URL
         mail: 邮件列表 URL
         wiki: Wiki URL
+        funding:
       session:
         password: 密码
         who: Email / 账号
@@ -39,6 +45,47 @@ zh-CN:
         email: Email
         handle: 账号
         password: 密码
+    errors:
+      messages:
+        unpwn:
+        blocked:
+  api_keys:
+    create:
+      success:
+    destroy:
+      success:
+    index:
+      api_keys:
+      name:
+      scopes:
+      age:
+      last_access:
+      action:
+      delete:
+      confirm:
+      confirm_all:
+      new_key:
+      index_rubygems:
+      push_rubygem:
+      yank_rubygem:
+      add_owner:
+      remove_owner:
+      access_webhooks:
+      show_dashboard:
+      reset:
+      save_key:
+    new:
+      new_api_key:
+    reset:
+      success:
+    update:
+      success:
+    edit:
+      edit_api_key:
+  clearance_mailer:
+    change_password:
+      title:
+      subtitle:
   dashboards:
     show:
       creating_link_text: 创建
@@ -48,8 +95,9 @@ zh-CN:
       migrating_link_text: 迁移
       mine: 我的 Gems
       my_subscriptions: 我的订阅
-      no_owned: 你没有发布过任何一个 Gem。可以尝试阅读 %{creating_link} 教程，或看看 %{migrating_link} 教程。
-      no_subscriptions: 你目前没有订阅任何 Gem，访问 %{gem_link} 可以订阅一个！
+      no_owned_html: 你没有发布过任何一个 Gem。可以尝试阅读 %{creating_link} 教程，或看看 %{migrating_link} 教程。
+      no_subscriptions_html: 你目前没有订阅任何 Gem，访问 %{gem_link} 可以订阅一个！
+      title: 控制台
   email_confirmations:
     create:
       promise_resend:
@@ -61,7 +109,7 @@ zh-CN:
       confirmed_email: 邮箱地址验证成功。
   home:
     index:
-      downloads_counting: 总下载次数
+      downloads_counting_html: 总下载次数
       find_blurb: 寻找、安装以及发布 RubyGems
       learn:
         install_rubygems: 安装 RubyGems
@@ -92,25 +140,72 @@ zh-CN:
         uptime: 服务状况
       header:
         dashboard: 控制台
-        search_gem: 搜索 Gems&hellip;
+        edit_profile:
+        settings:
+        search_gem_html: 搜索 Gems&hellip;
         sign_in: 登录
         sign_out: 退出
         sign_up: 注册
   mailer:
     confirm_your_email:
     confirmation_subject:
+    link_expiration_explanation_html:
     email_confirmation:
+      title:
+      subtitle:
       confirmation_link:
       welcome_message:
     email_reset:
+      title:
+      subtitle:
       visit_link_instructions:
-      link_expiration_explanation:
     deletion_complete:
+      title:
+      subtitle:
       subject:
-      body:
+      body_html:
     deletion_failed:
+      title:
+      subtitle:
       subject:
-      body:
+      body_html:
+    notifiers_changed:
+      subject:
+      title:
+      subtitle:
+      'on':
+      off_html:
+    gem_pushed:
+      subject:
+      title:
+    gem_yanked:
+      subject:
+      title:
+    reset_api_key:
+      subject:
+      title:
+      subtitle:
+    email_reset_update:
+      subject:
+      title:
+    ownership_confirmation:
+      subject:
+      title:
+      subtitle:
+      body_html:
+      link_expiration_explanation_html:
+    owner_added:
+      subject_self:
+      subject_others:
+      title:
+      subtitle:
+      body_self_html:
+      body_others_html:
+    owner_removed:
+      subject:
+      title:
+      subtitle:
+      body_html:
   news:
     show:
       title: 全部新发布 Gems
@@ -120,15 +215,27 @@ zh-CN:
       title: 热门新发布 Gems
   pages:
     about:
-      founding: 此项目创立由 %{founder} 于2009年4月，发展过程中有超过 %{contributors} 贡献者以及 %{downloads}。自从 RubyGems 1.3.6 发布以后，本站名称由 Gemcutter 改名为 %{title}，从而巩固在 Ruby 社区网站中和核心作用。
-      support: 虽然 Gemcutter 不是由一个具体的公司来运作，但也有很多的帮助让我们走出了这么远。目前的设计、插画、以及网站的前端开发都是由 %{dockyard} 提供支持。%{github} 帮助我们轻松的协助和共享代码。本站最初部署在 %{heroku}，其一流的服务，有助于证明 Gemcutter 是可以依赖、可行的解决方案。Our infrastructure is currently hosted on %{aws}.
-      technical: 关于本站的一些技术方案：100% Ruby。主站基于 %{rails}。Gems 文件放在 %{s3}, served by %{fastly}, 上面，它能缩短在 Gem 提交到可以下载之间的耗时。更多的信息可以在 GitHub 上阅读 %{source_code}，基于 %{license} 协议。
+      founding_html: 此项目创立由 %{founder} 于2009年4月，发展过程中有超过 %{contributors} 贡献者以及 %{downloads}。自从 RubyGems 1.3.6 发布以后，本站名称由 Gemcutter 改名为 %{title}，从而巩固在 Ruby 社区网站中和核心作用。
+      support_html: 虽然 Gemcutter 不是由一个具体的公司来运作，但也有很多的帮助让我们走出了这么远。目前的设计、插画、以及网站的前端开发都是由 %{dockyard} 提供支持。%{github} 帮助我们轻松的协助和共享代码。本站最初部署在 %{heroku}，其一流的服务，有助于证明 Gemcutter 是可以依赖、可行的解决方案。Our infrastructure is currently hosted on %{aws}.
+      technical_html: 关于本站的一些技术方案：100% Ruby。主站基于 %{rails}。Gems 文件放在 %{s3}, served by %{fastly}, 上面，它能缩短在 Gem 提交到可以下载之间的耗时。更多的信息可以在 GitHub 上阅读 %{source_code}，基于 %{license} 协议。
       title: 关于
       purpose:
         better_api: 提供更好的 API 来为 Gems 服务
         enable_community: 可以让社区来改善本站
         header: 欢迎来到 %{site}, 这是 Ruby 社区的 Gem 托管服务。此项目有三个目的：
         transparent_pages: 构建更透明以及便于浏览的项目页面
+    data:
+      title:
+    download:
+      title:
+    faq:
+      title:
+    migrate:
+      title:
+    security:
+      title:
+    sponsors:
+      title:
   passwords:
     edit:
       submit: 更新密码
@@ -137,6 +244,8 @@ zh-CN:
       submit: 重置密码
       title: 修改密码
       will_email_notice: 我们将会通过 Email 发送修改密码的链接给你。
+    otp_prompt:
+      authenticate:
   multifactor_auths:
     incorrect_otp:
     otp_code:
@@ -162,28 +271,30 @@ zh-CN:
       success:
     update:
       success:
-  profiles:
+  notifiers:
+    update:
+      success:
+    show:
+      info:
+      'on':
+      'off':
+      recommended:
+      title:
+      update:
+      push_heading:
+      owner_heading:
+  settings:
     edit:
-      email_awaiting_confirmation: 请验证你的新邮箱地址 %{unconfirmed_email}
-      enter_password: 输入密码
-      hide_email: 在公开的个人资料里面隐藏我的 Email
-      optional_twitter_username: Twitter 账号（可选）
-      title: 修改个人资料
+      title:
       api_access:
         confirm_reset: 确定要重置吗？此动作执行后将无法撤销
-        credentials: 如果你希望在命令行中使用 %{gem_commands_link}，你需要一个 %{gem_credentials_file} 文件，可用下面的命令生成：
-        key_is: 你的 API Key：%{key}。
+        credentials_html: 如果你希望在命令行中使用 %{gem_commands_link}，你需要一个 %{gem_credentials_file} 文件，可用下面的命令生成：
+        key_is_html: 你的 API Key：%{key}。
         link_text: Gem 命令
         reset: 重置 API Key
         title: API 访问
       reset_password:
-        link_text: 这里找回密码
-        text: 需要一个新密码？没问题，访问 %{link}
         title: 重置密码
-      delete:
-        delete: 删除
-        delete_profile: 删除个人资料
-        warning: 警告
       mfa:
         multifactor_auth:
         disabled:
@@ -192,15 +303,29 @@ zh-CN:
         update:
         level:
           title:
-          no_mfa:
-          ui_mfa_only:
-          ui_and_api_mfa:
+          disabled:
+          ui_only:
+          ui_and_api:
+          ui_and_gem_signin:
+  profiles:
+    edit:
+      change_avatar:
+      email_awaiting_confirmation: 请验证你的新邮箱地址 %{unconfirmed_email}
+      enter_password: 输入密码
+      hide_email: 在公开的个人资料里面隐藏我的 Email
+      optional_twitter_username: Twitter 账号（可选）
+      title: 修改个人资料
+      delete:
+        delete: 删除
+        delete_profile: 删除个人资料
+        warning: 警告
     delete:
       title:
       confirm:
       instructions:
-      list_only_owner:
+      list_only_owner_html:
       list_multi_owner:
+      warning: 警告
     rubygem:
       owners_header:
     destroy:
@@ -230,28 +355,33 @@ zh-CN:
         mail: 邮件列表
         report_abuse: 举报投诉
         reverse_dependencies: 反向依赖
+        review_changes:
         rss: RSS
         subscribe: 订阅
         unsubscribe: 取消订阅
         wiki: Wiki
+        resend_ownership_confirmation:
+        ownership:
     blacklisted:
       blacklisted_namespace:
     dependencies:
       header: "%{title} 依赖关系"
-    edit:
-      other_fields_notice: 其他字段的信息你只能通过发布一个新版本的 Gem 来修改。
-      subtitle: "%{gem}"
-      title: 编辑链接
-      deprecation_message:
     gem_members:
       authors_header: 作者
+      not_using_mfa_warning_show:
+      not_using_mfa_warning_hide:
       owners_header: 所有者
+      pushed_by:
+      using_mfa_info:
+      yanked_by:
       sha_256_checksum: SHA 256 checksum
     index:
       downloads: 下载
       title: Gems
     show:
-      licenses_header: 许可
+      licenses_header:
+        one: 许可
+        other: 许可
       no_licenses: 无
       requirements_header: 要求
       show_all_versions: 显示所有 (%{count} 个版本)
@@ -259,14 +389,15 @@ zh-CN:
       yanked_notice: 这个 Gem 版本已经 yanked（废弃了），他无法提供下载，也无法被其他的 Gem 依赖。
     show_yanked:
       not_hosted_notice: 这个 Gem 目前没有托管在 Gemcutter。
-      reserved_namespace:
+      reserved_namespace_html:
         one:
         other:
   reverse_dependencies:
     index:
       title: "%{name} 的反向依赖"
+      subtitle:
     search:
-      search_reverse_dependencies: 搜索反向依赖
+      search_reverse_dependencies_html:
   searches:
     advanced:
       name: 名称
@@ -275,17 +406,23 @@ zh-CN:
       downloads: 下载数
       updated: 更新时间
     show:
-      exact_match: 精确匹配
       subtitle: "%{query}"
       month_update:
       week_update:
       filter:
+      yanked:
+      suggestion:
   sessions:
     new:
       forgot_password: 忘记了密码？
       resend_confirmation: 没有收到确认邮件？
+    verify:
+      title:
+      confirm:
+      notice:
   stats:
     index:
+      title:
       all_time_most_downloaded: 历史下载次数排行
       total_downloads: 下载总次数
       total_gems: Gems 总数
@@ -317,3 +454,28 @@ zh-CN:
         one: 显示 <b>1</b> %{model}
         other: 显示 <b>所有 %{count}</b> %{model}
         zero: 暂时没有 %{model}
+  owners:
+    confirm:
+      confirmed_email:
+      token_expired:
+    index:
+      add_owner:
+      name:
+      mfa:
+      status:
+      confirmed_at:
+      added_by:
+      action:
+      info:
+      email_field:
+      submit_button:
+      confirmed:
+      pending:
+      confirm_remove:
+    resend_confirmation:
+      resent_notice:
+    create:
+      success_notice:
+    destroy:
+      removed_notice:
+      failed_notice:

@@ -1,4 +1,4 @@
-require 'test_helper'
+require "test_helper"
 
 class RubygemSearchableTest < ActiveSupport::TestCase
   include ESHelper
@@ -7,15 +7,24 @@ class RubygemSearchableTest < ActiveSupport::TestCase
     Rubygem.__elasticsearch__.create_index! force: true
   end
 
-  context '#as_indexed_json' do
+  context "#as_indexed_json" do
     setup do
       @rubygem = create(:rubygem, name: "example_gem", downloads: 10)
-      create(:version, number: '1.0.0', rubygem: @rubygem)
+      create(:version, number: "1.0.0", rubygem: @rubygem)
       create(:version,
-        number: '1.0.1',
+        number: "1.0.1",
         rubygem: @rubygem,
-        summary: 'some summary',
-        description: 'some description')
+        summary: "some summary",
+        description: "some description",
+        metadata: {
+          "homepage_uri"      => "http://example.com",
+          "source_code_uri"   => "http://example.com",
+          "wiki_uri"          => "http://example.com",
+          "mailing_list_uri"  => "http://example.com",
+          "bug_tracker_uri"   => "http://example.com",
+          "funding_uri"       => "http://example.com",
+          "documentation_uri" => "http://example.com"
+        })
     end
 
     should "return a hash" do
@@ -27,36 +36,63 @@ class RubygemSearchableTest < ActiveSupport::TestCase
       json = @rubygem.as_indexed_json
 
       expected_hash = {
-        name: 'example_gem',
-        yanked: false,
-        downloads: 10,
-        summary: 'some summary',
-        description: 'some description'
+        name:              "example_gem",
+        downloads:         10,
+        version:           "1.0.1",
+        version_downloads: 0,
+        platform:          "ruby",
+        authors:           "Joe User",
+        info:              "some description",
+        licenses:          "MIT",
+        metadata:          {
+          "homepage_uri"      => "http://example.com",
+          "source_code_uri"   => "http://example.com",
+          "wiki_uri"          => "http://example.com",
+          "mailing_list_uri"  => "http://example.com",
+          "bug_tracker_uri"   => "http://example.com",
+          "funding_uri"       => "http://example.com",
+          "documentation_uri" => "http://example.com"
+        },
+        sha:               "b5d4045c3f466fa91fe2cc6abe79232a1a57cdf104f7a26e716e0a1e2789df78",
+        project_uri:       "http://localhost/gems/example_gem",
+        gem_uri:           "http://localhost/gems/example_gem-1.0.1.gem",
+        homepage_uri:      "http://example.com",
+        wiki_uri:          "http://example.com",
+        documentation_uri: "http://example.com",
+        mailing_list_uri:  "http://example.com",
+        source_code_uri:   "http://example.com",
+        bug_tracker_uri:   "http://example.com",
+        funding_uri:       "http://example.com",
+        yanked:            false,
+        summary:           "some summary",
+        description:       "some description",
+        updated:           @rubygem.updated_at,
+        dependencies:      { development: [], runtime: [] }
       }
 
       expected_hash.each do |k, v|
-        assert_equal v, json[k]
+        assert_equal v, json[k], "value doesn't match for key: #{k}"
       end
     end
   end
 
-  context 'rubygems analyzer' do
+  context "rubygems analyzer" do
     setup do
-      create(:rubygem, name: 'example-gem', number: '0.0.1')
-      create(:rubygem, name: 'example_1', number: '0.0.1')
-      create(:rubygem, name: 'example.rb', number: '0.0.1')
+      create(:rubygem, name: "example-gem", number: "0.0.1")
+      create(:rubygem, name: "example_1", number: "0.0.1")
+      create(:rubygem, name: "example.rb", number: "0.0.1")
       import_and_refresh
     end
 
-    should 'find all gems with matching tokens' do
-      response = Rubygem.elastic_search "example"
-      assert_equal 3, response.results.size
+    should "find all gems with matching tokens" do
+      _, response = ElasticSearcher.new("example").search
+      assert_equal 3, response.size
       results = %w[example-gem example_1 example.rb]
-      assert_equal results, response.results.map(&:name)
+      assert_equal results, response.map(&:name)
     end
   end
 
-  context 'filter' do
+  context "filter" do
     setup do
       example_1 = create(:rubygem, name: "example_1")
       example_2 = create(:rubygem, name: "example_2")
@@ -66,32 +102,32 @@ class RubygemSearchableTest < ActiveSupport::TestCase
     end
 
     should "filter yanked gems from the result" do
-      response = Rubygem.elastic_search "example"
-      assert_equal 1, response.results.size
-      assert_equal "example_2", response.results.first.name
+      _, response = ElasticSearcher.new("example").search
+      assert_equal 1, response.size
+      assert_equal "example_2", response.first.name
     end
   end
 
-  context 'multi_match' do
+  context "multi_match" do
     setup do
       # without download, _score is calculated to 0.0
       example_gem1 = create(:rubygem, name: "keyword", downloads: 1)
       example_gem2 = create(:rubygem, name: "example_gem2", downloads: 1)
       example_gem3 = create(:rubygem, name: "example_gem3", downloads: 1)
-      create(:version, rubygem: example_gem1, description: 'some', summary: 'some')
-      create(:version, rubygem: example_gem2, description: 'keyword', summary: 'some')
-      create(:version, rubygem: example_gem3, summary: 'keyword', description: 'some')
+      create(:version, rubygem: example_gem1, description: "some", summary: "some")
+      create(:version, rubygem: example_gem2, description: "keyword", summary: "some")
+      create(:version, rubygem: example_gem3, summary: "keyword", description: "some")
       import_and_refresh
     end
 
     should "look for keyword in name, summary and description and order them in same priority order" do
-      response = Rubygem.elastic_search "keyword"
+      _, response = ElasticSearcher.new("keyword").search
       names_order = %w[keyword example_gem3 example_gem2]
       assert_equal names_order, response.results.map(&:name)
     end
   end
 
-  context 'function_score' do
+  context "function_score" do
     setup do
       (10..30).step(10) do |downloads|
         rubygem = create(:rubygem, name: "gem_#{downloads}", downloads: downloads)
@@ -101,26 +137,26 @@ class RubygemSearchableTest < ActiveSupport::TestCase
     end
 
     should "boost score of result by downloads count" do
-      response = Rubygem.elastic_search "gem"
+      _, response = ElasticSearcher.new("gem").search
       names_order = %w[gem_30 gem_20 gem_10]
       assert_equal names_order, response.results.map(&:name)
     end
   end
 
-  context 'source' do
+  context "source" do
     setup do
       rubygem = create(:rubygem, name: "example_gem", downloads: 10)
-      create(:version, rubygem: rubygem, summary: 'some summary', description: 'some description')
+      create(:version, rubygem: rubygem, summary: "some summary", description: "some description")
       import_and_refresh
     end
 
     should "return all terms of source" do
-      response = Rubygem.elastic_search "example_gem"
+      _, response = ElasticSearcher.new("example_gem").search
       hash = {
-        name: 'example_gem',
+        name: "example_gem",
         downloads: 10,
-        summary: 'some summary',
-        description: 'some description'
+        summary: "some summary",
+        description: "some description"
       }
 
       hash.each do |k, v|
@@ -129,91 +165,91 @@ class RubygemSearchableTest < ActiveSupport::TestCase
     end
   end
 
-  context 'suggest' do
+  context "suggest" do
     setup do
-      example1 = create(:rubygem, name: 'keyword')
-      example2 = create(:rubygem, name: 'keywordo')
-      example3 = create(:rubygem, name: 'keywo')
+      example1 = create(:rubygem, name: "keyword")
+      example2 = create(:rubygem, name: "keywordo")
+      example3 = create(:rubygem, name: "keywo")
       [example1, example2, example3].each { |gem| create(:version, rubygem: gem) }
       import_and_refresh
     end
 
     should "suggest names of possible gems" do
-      response = Rubygem.elastic_search "keywor"
+      _, response = ElasticSearcher.new("keywor").search
       suggestions = %w[keyword keywo keywordo]
       assert_equal suggestions, response.suggestions.terms
     end
   end
 
-  context 'advanced search' do
+  context "advanced search" do
     setup do
-      rubygem1 = create(:rubygem, name: 'example', downloads: 101)
-      rubygem2 = create(:rubygem, name: 'web-rubygem', downloads: 99)
-      create(:version, rubygem: rubygem1, summary: 'special word with web-rubygem')
-      create(:version, rubygem: rubygem2, description: 'example special word')
+      rubygem1 = create(:rubygem, name: "example", downloads: 101)
+      rubygem2 = create(:rubygem, name: "web-rubygem", downloads: 99)
+      create(:version, rubygem: rubygem1, summary: "special word with web-rubygem")
+      create(:version, rubygem: rubygem2, description: "example special word")
       import_and_refresh
     end
 
     should "filter gems on downloads" do
-      response = Rubygem.elastic_search "downloads:>100"
-      assert_equal 1, response.results.size
-      assert_equal "example", response.results.first.name
+      _, response = ElasticSearcher.new("downloads:>100").search
+      assert_equal 1, response.size
+      assert_equal "example", response.first.name
     end
 
     should "filter gems on name" do
-      response = Rubygem.elastic_search "name:web-rubygem"
-      assert_equal 1, response.results.size
-      assert_equal "web-rubygem", response.results.first.name
+      _, response = ElasticSearcher.new("name:web-rubygem").search
+      assert_equal 1, response.size
+      assert_equal "web-rubygem", response.first.name
     end
 
     should "filter gems on summary" do
-      response = Rubygem.elastic_search "summary:special word"
-      assert_equal 1, response.results.size
-      assert_equal "example", response.results.first.name
+      _, response = ElasticSearcher.new("summary:special word").search
+      assert_equal 1, response.size
+      assert_equal "example", response.first.name
     end
 
     should "filter gems on description" do
-      response = Rubygem.elastic_search "description:example"
-      assert_equal 1, response.results.size
-      assert_equal "web-rubygem", response.results.first.name
+      _, response = ElasticSearcher.new("description:example").search
+      assert_equal 1, response.size
+      assert_equal "web-rubygem", response.first.name
     end
 
     should "change default operator" do
-      response = Rubygem.elastic_search "example OR web-rubygem"
-      assert_equal 2, response.results.size
-      assert_equal ["web-rubygem", "example"], response.results.map(&:name)
+      _, response = ElasticSearcher.new("example OR web-rubygem").search
+      assert_equal 2, response.size
+      assert_equal %w[web-rubygem example], response.map(&:name)
     end
 
     should "support wildcards" do
-      response = Rubygem.elastic_search "name:web*"
-      assert_equal 1, response.results.size
-      assert_equal "web-rubygem", response.results.first.name
+      _, response = ElasticSearcher.new("name:web*").search
+      assert_equal 1, response.size
+      assert_equal "web-rubygem", response.first.name
     end
   end
 
-  context 'aggregations' do
+  context "aggregations" do
     setup do
-      rubygem1 = create(:rubygem, name: 'example')
-      rubygem2 = create(:rubygem, name: 'rubygem')
-      create(:version, rubygem: rubygem1, summary: 'gemest of all gems')
-      create(:version, rubygem: rubygem2, description: 'example gems set the example')
-      rubygem1.update_column('updated_at', 2.days.ago)
-      rubygem2.update_column('updated_at', 10.days.ago)
+      rubygem1 = create(:rubygem, name: "example")
+      rubygem2 = create(:rubygem, name: "rubygem")
+      create(:version, rubygem: rubygem1, summary: "gemest of all gems")
+      create(:version, rubygem: rubygem2, description: "example gems set the example")
+      rubygem1.update_column("updated_at", 2.days.ago)
+      rubygem2.update_column("updated_at", 10.days.ago)
       import_and_refresh
-      @response = Rubygem.elastic_search "example"
+      _, @response = ElasticSearcher.new("example").search
     end
 
     should "aggregate matched fields" do
-      buckets = @response.response['aggregations']['matched_field']['buckets']
-      assert_equal 1, buckets['name']['doc_count']
-      assert_equal 0, buckets['summary']['doc_count']
-      assert_equal 1, buckets['description']['doc_count']
+      buckets = @response.response["aggregations"]["matched_field"]["buckets"]
+      assert_equal 1, buckets["name"]["doc_count"]
+      assert_equal 0, buckets["summary"]["doc_count"]
+      assert_equal 1, buckets["description"]["doc_count"]
     end
 
     should "aggregate date range" do
-      buckets = @response.response['aggregations']['date_range']['buckets']
-      assert_equal 2, buckets[0]['doc_count']
-      assert_equal 1, buckets[1]['doc_count']
+      buckets = @response.response["aggregations"]["date_range"]["buckets"]
+      assert_equal 2, buckets[0]["doc_count"]
+      assert_equal 1, buckets[1]["doc_count"]
     end
   end
 
@@ -224,30 +260,35 @@ class RubygemSearchableTest < ActiveSupport::TestCase
       context "Elasticsearch::Transport::Transport::Errors::BadRequest" do
         setup do
           @ill_formated_query = "updated:[2016-08-10 TO }"
-          Rubygem.stubs(:legacy_search).returns Rubygem.all
-          @error_msg, = Rubygem.search(@ill_formated_query, elasticsearch: true)
         end
 
         should "fallback to legacy search" do
-          assert_received(Rubygem, :legacy_search) { |arg| arg.with(@ill_formated_query) }
+          Rubygem.expects(:legacy_search).with(@ill_formated_query).returns(Rubygem.all)
+
+          ElasticSearcher.new(@ill_formated_query).search
         end
 
         should "give correct error message" do
           expected_msg = "Failed to parse: '#{@ill_formated_query}'. Falling back to legacy search."
+
+          @error_msg, = ElasticSearcher.new(@ill_formated_query).search
+
           assert_equal expected_msg, @error_msg
         end
       end
 
       context "Elasticsearch::Transport::Transport::Errors" do
+        setup do
+          Rubygem.expects(:legacy_search).with("something").returns(Rubygem.all)
+        end
+
         should "fallback to legacy search and give correct error message" do
           requires_toxiproxy
-          Rubygem.stubs(:legacy_search).returns Rubygem.all
 
           Toxiproxy[:elasticsearch].down do
-            error_msg, = Rubygem.search("something", elasticsearch: true)
+            error_msg, = ElasticSearcher.new("something").search
             expected_msg = "Advanced search is currently unavailable. Falling back to legacy search."
             assert_equal expected_msg, error_msg
-            assert_received(Rubygem, :legacy_search) { |arg| arg.with("something") }
           end
         end
       end
@@ -263,10 +304,26 @@ class RubygemSearchableTest < ActiveSupport::TestCase
       end
 
       should "not affect results" do
-        response1 = Rubygem.elastic_search "async rails"
-        response2 = Rubygem.elastic_search "rails async"
+        _, response1 = ElasticSearcher.new("async rails").search
+        _, response2 = ElasticSearcher.new("rails async").search
         assert_equal response1.results.map(&:name), response2.results.map(&:name)
       end
+    end
+  end
+
+  context "query matches gem name prefix" do
+    setup do
+      %w[term-ansicolor term-an].each do |gem_name|
+        create(:rubygem, name: gem_name, number: "0.0.1", downloads: 10)
+      end
+      import_and_refresh
+    end
+
+    should "return results" do
+      _, response = ElasticSearcher.new("term-ans").search
+
+      assert_equal 1, response.size
+      assert_equal "term-ansicolor", response.first.name
     end
   end
 end

@@ -1,4 +1,4 @@
-require 'test_helper'
+require "test_helper"
 
 class RubygemsHelperTest < ActionView::TestCase
   include Rails.application.routes.url_helpers
@@ -17,7 +17,7 @@ class RubygemsHelperTest < ActionView::TestCase
       @version.stubs(:licenses)
       assert_equal "Licenses", pluralized_licenses_header(@version)
 
-      @version.stubs(:licenses).returns(["MIT", "GPL-2"])
+      @version.stubs(:licenses).returns(%w[MIT GPL-2])
       assert_equal "Licenses", pluralized_licenses_header(@version)
     end
   end
@@ -28,7 +28,7 @@ class RubygemsHelperTest < ActionView::TestCase
     end
 
     should "be combined with comma if there are licenses" do
-      assert_equal "MIT, GPL-2", formatted_licenses(["MIT", "GPL-2"])
+      assert_equal "MIT, GPL-2", formatted_licenses(%w[MIT GPL-2])
     end
   end
 
@@ -60,15 +60,13 @@ class RubygemsHelperTest < ActionView::TestCase
     rubygem = create(:rubygem)
     url = "https://badge.fury.io/rb/#{rubygem.name}/install"
 
-    @virtual_path = "rubygems.show"
     assert_match url, badge_link(rubygem)
   end
 
   should "link to report abuse" do
-    rubygem = create(:rubygem, name: 'my_gem')
-    url = "http://help.rubygems.org/discussion/new?discussion[private]=1&discussion[title]=Reporting+Abuse+on+my_gem"
+    rubygem = create(:rubygem, name: "my_gem")
+    url = "mailto:support@rubygems.org?subject=Reporting Abuse on my_gem"
 
-    @virtual_path = "rubygems.show"
     assert_match url, report_abuse_link(rubygem)
   end
 
@@ -77,7 +75,6 @@ class RubygemsHelperTest < ActionView::TestCase
       @linkset = build(:linkset)
       @linkset.wiki = nil
       @linkset.code = ""
-      @virtual_path = "rubygems.show"
     end
 
     should "create link for homepage" do
@@ -117,22 +114,37 @@ class RubygemsHelperTest < ActionView::TestCase
       assert_equal expected_links, links_to_owners(@rubygem)
       assert links_to_owners(@rubygem).html_safe?
     end
+
+    should "create links to gem owners without mfa" do
+      with_mfa = create(:user, mfa_level: "ui_and_api")
+      without_mfa = create_list(:user, 2, mfa_level: "disabled")
+      rubygem = create(:rubygem, owners: [*without_mfa, with_mfa])
+
+      expected_links = without_mfa.sort_by(&:id).map do |u|
+        link_to gravatar(48, "gravatar-#{u.id}", u),
+          profile_path(u.display_id),
+          alt: u.display_handle,
+          title: u.display_handle
+      end.join
+      assert_equal expected_links, links_to_owners_without_mfa(rubygem)
+      assert links_to_owners_without_mfa(rubygem).html_safe?
+    end
   end
 
-  context 'simple_markup' do
-    should 'sanitize copy' do
+  context "simple_markup" do
+    should "sanitize copy" do
       text = '<script>alert("foo");</script>Rails authentication & authorization'
-      assert_equal '<p>alert(&quot;foo&quot;);Rails authentication &amp; authorization</p>', simple_markup(text)
+      assert_equal "<p>alert(&quot;foo&quot;);Rails authentication &amp; authorization</p>", simple_markup(text)
       assert simple_markup(text).html_safe?
     end
 
-    should 'work on rdoc strings' do
-      text = '== FOO'
+    should "work on rdoc strings" do
+      text = "== FOO"
       assert_equal "\n<h2>FOO</h2>\n", simple_markup(text)
       assert simple_markup(text).html_safe?
     end
 
-    should 'sanitize rdoc strings' do
+    should "sanitize rdoc strings" do
       text = "== FOO\nclick[javascript:alert('foo')]"
       assert_equal "\n<h2>FOO</h2>\n\n<p><a>click</a></p>\n", simple_markup(text)
 
@@ -144,7 +156,7 @@ class RubygemsHelperTest < ActionView::TestCase
     context "with invalid uri" do
       setup do
         linkset = build(:linkset, code: "http://github.com/\#{github_username}/\#{project_name}")
-        @rubygem = build(:rubygem, linkset: linkset)
+        @rubygem = create(:rubygem, linkset: linkset, number: "0.0.1")
       end
 
       should "not raise error" do
@@ -160,7 +172,7 @@ class RubygemsHelperTest < ActionView::TestCase
       setup do
         @github_link = "http://github.com/user/project"
         linkset = build(:linkset, code: @github_link)
-        @rubygem = build(:rubygem, linkset: linkset)
+        @rubygem = create(:rubygem, linkset: linkset, number: "0.0.1")
       end
 
       should "return parsed uri" do
@@ -172,11 +184,40 @@ class RubygemsHelperTest < ActionView::TestCase
       setup do
         @github_link = "http://github.com/user/project"
         linkset = build(:linkset, home: @github_link)
-        @rubygem = build(:rubygem, linkset: linkset)
+        @rubygem = create(:rubygem, linkset: linkset, number: "0.0.1")
       end
 
       should "return parsed uri" do
         assert_equal URI(@github_link), link_to_github(@rubygem)
+      end
+    end
+  end
+
+  context "change_diff_link" do
+    context "with yanked version" do
+      setup do
+        @version = create(:version, indexed: false)
+        @rubygem = @version.rubygem
+      end
+
+      should "return nil" do
+        assert_nil change_diff_link(@rubygem, @version)
+      end
+    end
+
+    context "with available version" do
+      setup do
+        @version = create(:version)
+        @rubygem = @version.rubygem
+      end
+
+      should "generate a correct link to the gem versions diff" do
+        diff_url = "https://my.diffend.io/gems/#{@rubygem.name}/prev/#{@version.slug}"
+
+        expected_link = link_to "Review changes", diff_url,
+                          class: "gem__link t-list__item"
+
+        assert_equal expected_link, change_diff_link(@rubygem, @version)
       end
     end
   end

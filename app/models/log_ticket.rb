@@ -1,5 +1,5 @@
 class LogTicket < ApplicationRecord
-  enum backend: %i[s3 local]
+  enum backend: { s3: 0, local: 1 }
 
   scope(:pending, -> { limit(1).lock(true).select("id").where(status: "pending").order("id ASC") })
 
@@ -9,7 +9,7 @@ class LogTicket < ApplicationRecord
     scope = scope.where(directory: directory) if directory
     sql = scope.to_sql
 
-    find_by_sql(["UPDATE #{quoted_table_name} SET status = ? WHERE id IN (#{sql}) RETURNING *", 'processing']).first
+    find_by_sql(["UPDATE #{quoted_table_name} SET status = ? WHERE id IN (#{sql}) RETURNING *", "processing"]).first
   end
 
   def fs

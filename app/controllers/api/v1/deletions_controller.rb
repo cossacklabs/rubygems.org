@@ -1,26 +1,21 @@
 class Api::V1::DeletionsController < Api::BaseController
-  skip_before_action :verify_authenticity_token, only: %i[create destroy]
-
-  before_action :authenticate_with_api_key, only: %i[create destroy]
-  before_action :verify_authenticated_user, only: %i[create destroy]
-  before_action :find_rubygem_by_name,      only: %i[create destroy]
-  before_action :validate_gem_and_version,  only: %i[create]
+  before_action :authenticate_with_api_key
+  before_action :find_rubygem_by_name
+  before_action :validate_gem_and_version
+  before_action :verify_with_otp
+  before_action :render_api_key_forbidden, if: :api_key_unauthorized?
 
   def create
-    @deletion = @api_user.deletions.build(version: @version)
+    @deletion = @api_key.user.deletions.build(version: @version)
     if @deletion.save
-      StatsD.increment 'yank.success'
+      StatsD.increment "yank.success"
+      enqueue_web_hook_jobs(@version)
       render plain: "Successfully deleted gem: #{@version.to_title}"
     else
-      StatsD.increment 'yank.failure'
+      StatsD.increment "yank.failure"
       render plain: @deletion.errors.full_messages.to_sentence,
              status: :unprocessable_entity
     end
-  end
-
-  def destroy
-    render plain: "Unyanking of gems is no longer supported.",
-           status: :gone
   end
 
   private
@@ -29,7 +24,7 @@ class Api::V1::DeletionsController < Api::BaseController
     if !@rubygem.hosted?
       render plain: t(:this_rubygem_could_not_be_found),
              status: :not_found
-    elsif !@rubygem.owned_by?(@api_user)
+    elsif !@rubygem.owned_by?(@api_key.user)
       render plain: "You do not have permission to delete this gem.",
              status: :forbidden
     else
@@ -45,5 +40,9 @@ class Api::V1::DeletionsController < Api::BaseController
                status: :not_found
       end
     end
+  end
+
+  def api_key_unauthorized?
+    !@api_key.can_yank_rubygem?
   end
 end

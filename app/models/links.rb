@@ -1,19 +1,20 @@
 class Links
   # Links available for indexed gems
   LINKS = {
-    'home'      => 'homepage_uri',
-    'changelog' => 'changelog_uri',
-    'code'      => 'source_code_uri',
-    'docs'      => 'documentation_uri',
-    'wiki'      => 'wiki_uri',
-    'mail'      => 'mailing_list_uri',
-    'bugs'      => 'bug_tracker_uri',
-    'download'  => 'download_uri'
+    "home"      => "homepage_uri",
+    "changelog" => "changelog_uri",
+    "code"      => "source_code_uri",
+    "docs"      => "documentation_uri",
+    "wiki"      => "wiki_uri",
+    "mail"      => "mailing_list_uri",
+    "bugs"      => "bug_tracker_uri",
+    "download"  => "download_uri",
+    "funding"   => "funding_uri"
   }.freeze
 
   # Links available for non-indexed gems
   NON_INDEXED_LINKS = {
-    'docs'      => 'documentation_uri'
+    "docs"      => "documentation_uri"
   }.freeze
 
   attr_accessor :rubygem, :version, :linkset
@@ -43,14 +44,18 @@ class Links
   # or if linksets has it defined, use that
   # else, generate one from gem name and version number
   def documentation_uri
-    version.metadata["documentation_uri"].presence ||
-      linkset&.docs&.presence ||
-      "http://www.rubydoc.info/gems/#{rubygem.name}/#{version.number}"
+    return version.metadata["documentation_uri"].presence if version.metadata_uri_set?
+    linkset&.docs&.presence || "https://www.rubydoc.info/gems/#{rubygem.name}/#{version.number}"
   end
 
   # technically this is a path
   def download_uri
     "/downloads/#{version.full_name}.gem" if version.indexed
+  end
+
+  # excluded from metadata_uri_set? check
+  def homepage_uri
+    version.metadata["homepage_uri"].presence || linkset&.home
   end
 
   # define getters for each of the uris (both short `home` or long `homepage_uri` versions)
@@ -59,7 +64,8 @@ class Links
   LINKS.each do |short, long|
     unless method_defined?(long)
       define_method(long) do
-        version.metadata[long].presence || linkset.try(short)
+        return version.metadata[long].presence if version.metadata_uri_set?
+        linkset.try(short)
       end
     end
     alias_method short, long

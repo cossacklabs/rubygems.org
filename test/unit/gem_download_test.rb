@@ -1,4 +1,4 @@
-require 'test_helper'
+require "test_helper"
 
 class GemDownloadTest < ActiveSupport::TestCase
   include ESHelper
@@ -90,25 +90,59 @@ class GemDownloadTest < ActiveSupport::TestCase
     context "with initial downloads" do
       setup do
         @gem_downloads = Array.new(3) { rand(100) }
-        @gems  = Array.new(3) { |i| create(:rubygem, downloads: @gem_downloads[i]) }
+        @gems = Array.new(3) { |i| create(:rubygem, downloads: @gem_downloads[i]) }
         counts = Array.new(3) { rand(100) }
-        @data  = []
+        data = []
 
         [2, 0, 1].each do |i|
           create(:version, rubygem: @gems[i]).tap do |version|
-            @data << [version.full_name, counts[i]]
+            data << [version.full_name, counts[i]]
             @gem_downloads[i] += counts[i]
           end
         end
         import_and_refresh
+        GemDownload.bulk_update(data)
       end
 
       should "update rubygems downloads irrespective of rubygem_ids order" do
-        GemDownload.bulk_update(@data)
         2.times.each do |i|
           assert_equal @gem_downloads[i], es_downloads(@gems[i].id)
           assert_equal @gem_downloads[i], GemDownload.count_for_rubygem(@gems[i].id)
         end
+      end
+
+      should "set version_downloads of ES record with most_recent version downloads" do
+        2.times.each do |i|
+          most_recent_version = @gems[i].versions.most_recent
+          assert_equal most_recent_version.downloads_count, es_version_downloads(@gems[i].id)
+        end
+      end
+    end
+
+    context "with prerelease versions" do
+      setup do
+        @rubygem = create(:rubygem, number: "0.0.1.rc")
+        import_and_refresh
+        most_recent_version = @rubygem.versions.most_recent
+        version_downloads = [most_recent_version.full_name, 40]
+        GemDownload.bulk_update([version_downloads])
+      end
+
+      should "set version_downloads of ES record with prerelease downloads" do
+        assert_equal 40, es_version_downloads(@rubygem.id)
+      end
+    end
+
+    context "with no ruby platform versions" do
+      setup do
+        @version = create(:version, platform: "java")
+        import_and_refresh
+        version_downloads = [@version.full_name, 40]
+        GemDownload.bulk_update([version_downloads])
+      end
+
+      should "set version_downloads of ES record with platform downloads" do
+        assert_equal 40, es_version_downloads(@version.rubygem.id)
       end
     end
   end
@@ -128,11 +162,11 @@ class GemDownloadTest < ActiveSupport::TestCase
   end
 
   should "not count, wrong named versions" do
-    GemDownload.bulk_update([['foonotexists', 100]])
+    GemDownload.bulk_update([["foonotexists", 100]])
     assert_equal 0, GemDownload.total_count
 
     version = create(:version)
-    GemDownload.bulk_update([['foonotexists', 100], ['dddd', 50], [version.full_name, 2]])
+    GemDownload.bulk_update([["foonotexists", 100], ["dddd", 50], [version.full_name, 2]])
     assert_equal 2, GemDownload.total_count
   end
 

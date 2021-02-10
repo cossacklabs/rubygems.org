@@ -16,19 +16,23 @@ class User < ApplicationRecord
 
   before_destroy :yank_gems
 
-  has_many :ownerships, dependent: :destroy
-  has_many :rubygems, through: :ownerships
+  has_many :ownerships, -> { confirmed }, dependent: :destroy, inverse_of: :user
 
+  has_many :rubygems, through: :ownerships, source: :rubygem
   has_many :subscriptions, dependent: :destroy
   has_many :subscribed_gems, -> { order("name ASC") }, through: :subscriptions, source: :rubygem
 
   has_many :deletions, dependent: :nullify
   has_many :web_hooks, dependent: :destroy
 
-  after_validation :set_unconfirmed_email, if: :email_changed?, on: :update
-  before_create :generate_api_key, :generate_confirmation_token
+  # used for deleting unconfirmed ownerships as well on user destroy
+  has_many :unconfirmed_ownerships, -> { unconfirmed }, dependent: :destroy, inverse_of: :user, class_name: "Ownership"
+  has_many :api_keys, dependent: :destroy
 
-  validates :email, length: { maximum: 254 }
+  before_save :generate_confirmation_token, if: :will_save_change_to_unconfirmed_email?
+  before_create :generate_confirmation_token
+
+  validates :email, length: { maximum: Gemcutter::MAX_FIELD_LENGTH }, format: { with: URI::MailTo::EMAIL_REGEXP }, presence: true
 
   validates :handle, uniqueness: true, allow_nil: true
   validates :handle, format: {
@@ -43,22 +47,45 @@ class User < ApplicationRecord
   }, allow_nil: true
 
   validates :twitter_username, length: { within: 0..20 }, allow_nil: true
-  validates :password, length: { within: 10..200 }, allow_nil: true, unless: :skip_password_validation?
+  validates :password,
+    length: { within: 10..200 },
+    unpwn: true,
+    allow_nil: true,
+    unless: :skip_password_validation?
   validate :unconfirmed_email_uniqueness
+  validate :toxic_email_domain, on: :create
 
-  enum mfa_level: { no_mfa: 0, ui_mfa_only: 1, ui_and_api_mfa: 2 }
+  enum mfa_level: { disabled: 0, ui_only: 1, ui_and_api: 2, ui_and_gem_signin: 3 }, _prefix: :mfa
 
   def self.authenticate(who, password)
     user = find_by(email: who.downcase) || find_by(handle: who)
     user if user&.authenticated?(password)
+  rescue BCrypt::Errors::InvalidHash
+    nil
   end
 
   def self.find_by_slug!(slug)
     find_by(id: slug) || find_by!(handle: slug)
   end
 
+  def self.find_by_slug(slug)
+    find_by(id: slug) || find_by(handle: slug)
+  end
+
   def self.find_by_name(name)
     find_by(email: name) || find_by(handle: name)
+  end
+
+  def self.push_notifiable_owners
+    where(ownerships: { push_notifier: true })
+  end
+
+  def self.ownership_notifiable_owners
+    where(ownerships: { owner_notifier: true })
+  end
+
+  def self.without_mfa
+    where(mfa_level: "disabled")
   end
 
   def name
@@ -95,7 +122,7 @@ class User < ApplicationRecord
   end
 
   def to_xml(options = {})
-    payload.to_xml(options.merge(root: 'user'))
+    payload.to_xml(options.merge(root: "user"))
   end
 
   def to_yaml(*args)
@@ -106,11 +133,6 @@ class User < ApplicationRecord
     coder.tag = nil
     coder.implicit = true
     coder.map = payload
-  end
-
-  def set_unconfirmed_email
-    self.attributes = { unconfirmed_email: email, email: email_was }
-    generate_confirmation_token
   end
 
   def generate_api_key
@@ -165,23 +187,23 @@ class User < ApplicationRecord
   end
 
   def mfa_enabled?
-    !no_mfa?
+    !mfa_disabled?
   end
 
   def disable_mfa!
-    no_mfa!
-    self.mfa_seed = ''
+    mfa_disabled!
+    self.mfa_seed = ""
     self.mfa_recovery_codes = []
     save!(validate: false)
   end
 
   def verify_and_enable_mfa!(seed, level, otp, expiry)
     if expiry < Time.now.utc
-      errors.add(:base, I18n.t('multifactor_auths.create.qrcode_expired'))
+      errors.add(:base, I18n.t("multifactor_auths.create.qrcode_expired"))
     elsif verify_digit_otp(seed, otp)
       enable_mfa!(seed, level)
     else
-      errors.add(:base, I18n.t('multifactor_auths.incorrect_otp'))
+      errors.add(:base, I18n.t("multifactor_auths.incorrect_otp"))
     end
   end
 
@@ -192,8 +214,13 @@ class User < ApplicationRecord
     save!(validate: false)
   end
 
+  def mfa_gem_signin_authorized?(otp)
+    return true unless mfa_ui_and_gem_signin? || mfa_ui_and_api?
+    otp_verified?(otp)
+  end
+
   def mfa_api_authorized?(otp)
-    return true unless ui_and_api_mfa?
+    return true unless mfa_ui_and_api?
     otp_verified?(otp)
   end
 
@@ -206,26 +233,40 @@ class User < ApplicationRecord
     save!(validate: false)
   end
 
+  def block!
+    transaction do
+      update_attribute(:email, "security+locked-#{SecureRandom.hex(4)}-#{display_handle.downcase}@rubygems.org")
+      confirm_email!
+      disable_mfa!
+      update_attribute(:password, SecureRandom.alphanumeric)
+      update!(
+        remember_token: nil,
+        remember_token_expires_at: nil,
+        api_key: nil
+      )
+    end
+  end
+
   private
 
   def verify_digit_otp(seed, otp)
     totp = ROTP::TOTP.new(seed)
-    return false unless totp.verify_with_drift_and_prior(otp, 30)
+    return false unless totp.verify(otp, drift_behind: 30, drift_ahead: 30)
 
     save!(validate: false)
   end
 
   def update_email!
-    self.attributes = { email: unconfirmed_email, unconfirmed_email: nil }
+    self.attributes = { email: unconfirmed_email, unconfirmed_email: nil, mail_fails: 0 }
     save!(validate: false)
   end
 
   def unconfirmed_email_uniqueness
-    errors.add(:email, I18n.t('errors.messages.taken')) if unconfirmed_email_exists?
+    errors.add(:email, I18n.t("errors.messages.taken")) if unconfirmed_email_exists?
   end
 
   def unconfirmed_email_exists?
-    User.where(unconfirmed_email: email).exists?
+    User.where(email: unconfirmed_email).exists?
   end
 
   def yank_gems
@@ -233,5 +274,13 @@ class User < ApplicationRecord
     versions_to_yank.each do |v|
       deletions.create(version: v)
     end
+  end
+
+  def toxic_email_domain
+    return unless (domain = email.split("@").last)
+    toxic_domains_path = Pathname.new(Gemcutter::Application.config.toxic_domains_filepath)
+    toxic = toxic_domains_path.exist? && toxic_domains_path.readlines.grep(/^#{Regexp.escape(domain)}$/).any?
+
+    errors.add(:email, I18n.t("activerecord.errors.messages.blocked", domain: domain)) if toxic
   end
 end

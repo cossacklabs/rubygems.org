@@ -22,13 +22,13 @@ class GemInfo
   end
 
   def self.ordered_names
-    names = Rails.cache.read('names')
+    names = Rails.cache.read("names")
     if names
       StatsD.increment "compact_index.memcached.names.hit"
     else
       StatsD.increment "compact_index.memcached.names.miss"
       names = Rubygem.order("name").pluck("name")
-      Rails.cache.write('names', names)
+      Rails.cache.write("names", names)
     end
     names
   end
@@ -46,7 +46,7 @@ class GemInfo
                     v.yanked_at > ?)
               ORDER BY date, number, platform, name", date, date]
 
-    map_gem_versions(execute_raw_sql(query).map { |v| [v['name'], [v]] })
+    map_gem_versions(execute_raw_sql(query).map { |v| [v["name"], [v]] })
   end
 
   def self.compact_index_public_versions
@@ -57,12 +57,12 @@ class GemInfo
               WHERE v.rubygem_id = r.id
               ORDER BY r.name, stamp, v.number, v.platform"]
 
-    versions_by_gem = execute_raw_sql(query).group_by { |v| v['name'] }
+    versions_by_gem = execute_raw_sql(query).group_by { |v| v["name"] }
     versions_by_gem.each do |_, versions|
-      info_checksum = versions.last['info_checksum']
-      versions.select! { |v| v['indexed'] == true }
+      info_checksum = versions.last["info_checksum"]
+      versions.select! { |v| v["indexed"] == true }
       # Set all versions' info_checksum to work around https://github.com/bundler/compact_index/pull/20
-      versions.each { |v| v['info_checksum'] = info_checksum }
+      versions.each { |v| v["info_checksum"] = info_checksum }
     end
     versions_by_gem.reject! { |_, versions| versions.empty? }
 
@@ -77,10 +77,10 @@ class GemInfo
   def self.map_gem_versions(versions_by_gem)
     versions_by_gem.map do |gem_name, versions|
       compact_index_versions = versions.map do |version|
-        CompactIndex::GemVersion.new(version['number'],
-          version['platform'],
-          version['sha256'],
-          version['info_checksum'])
+        CompactIndex::GemVersion.new(version["number"],
+          version["platform"],
+          version["sha256"],
+          version["info_checksum"])
       end
       CompactIndex::Gem.new(gem_name, compact_index_versions)
     end
@@ -98,11 +98,11 @@ class GemInfo
     requirements_and_dependencies.map do |r|
       deps = []
       if r[DEPENDENCY_REQUIREMENTS_INDEX]
-        reqs = r[DEPENDENCY_REQUIREMENTS_INDEX].split('@')
-        dep_names = r[DEPENDENCY_NAMES_INDEX].split(',')
-        raise 'BUG: different size of reqs and dep_names.' unless reqs.size == dep_names.size
+        reqs = r[DEPENDENCY_REQUIREMENTS_INDEX].split("@")
+        dep_names = r[DEPENDENCY_NAMES_INDEX].split(",")
+        raise "BUG: different size of reqs and dep_names." unless reqs.size == dep_names.size
         dep_names.zip(reqs).each do |name, req|
-          deps << CompactIndex::Dependency.new(name, req) unless name == '0'
+          deps << CompactIndex::Dependency.new(name, req) unless name == "0"
         end
       end
 
@@ -113,7 +113,7 @@ class GemInfo
   def requirements_and_dependencies
     group_by_columns = "number, platform, sha256, info_checksum, required_ruby_version, required_rubygems_version, versions.created_at"
 
-    dep_req_agg = "string_agg(dependencies.requirements, '@' ORDER BY rubygems_dependencies.name)"
+    dep_req_agg = "string_agg(dependencies.requirements, '@' ORDER BY rubygems_dependencies.name, dependencies.id)"
 
     dep_name_agg = "string_agg(coalesce(rubygems_dependencies.name, '0'), ',' ORDER BY rubygems_dependencies.name) AS dep_name"
 
@@ -122,7 +122,7 @@ class GemInfo
         LEFT JOIN rubygems rubygems_dependencies
           ON rubygems_dependencies.id = dependencies.rubygem_id
           AND dependencies.scope = 'runtime'")
-      .where("rubygems.name = ? AND indexed = true", @rubygem_name)
+      .where("rubygems.name = ? AND versions.indexed = true", @rubygem_name)
       .group(Arel.sql(group_by_columns))
       .order(Arel.sql("versions.created_at, number, platform, dep_name"))
       .pluck(Arel.sql("#{group_by_columns}, #{dep_req_agg}, #{dep_name_agg}"))

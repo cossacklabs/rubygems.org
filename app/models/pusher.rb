@@ -1,15 +1,14 @@
-require 'digest/sha2'
+require "digest/sha2"
 
 class Pusher
   attr_reader :user, :spec, :message, :code, :rubygem, :body, :version, :version_id, :size
 
-  def initialize(user, body, protocol = nil, host_with_port = nil)
+  def initialize(user, body, remote_ip = "")
     @user = user
     @body = StringIO.new(body.read)
     @size = @body.size
     @indexer = Indexer.new
-    @protocol = protocol
-    @host_with_port = host_with_port
+    @remote_ip = remote_ip
   end
 
   def process
@@ -17,9 +16,7 @@ class Pusher
   end
 
   def authorize
-    rubygem.pushable? ||
-      rubygem.owned_by?(user) ||
-      notify("You do not have permission to push to this gem. Ask an owner to add you with: gem owner #{rubygem.name} --add #{user.email}", 403)
+    rubygem.pushable? || rubygem.owned_by?(user) || notify_unauthorized
   end
 
   def validate
@@ -42,16 +39,17 @@ class Pusher
   else
     after_write
     notify("Successfully registered gem: #{version.to_title}", 200)
+    true
   end
 
   def pull_spec
     @spec = Gem::Package.new(body).spec
-  rescue StandardError => error
+  rescue StandardError => e
     notify <<-MSG.strip_heredoc, 422
       RubyGems.org cannot process this gem.
       Please try rebuilding it and installing it locally to make sure it's valid.
       Error:
-      #{error.message}
+      #{e.message}
     MSG
   end
 
@@ -61,10 +59,8 @@ class Pusher
     @rubygem = Rubygem.name_is(name).first || Rubygem.new(name: name)
 
     unless @rubygem.new_record?
-      if @rubygem.find_version_from_spec(spec)
-        notify("Repushing of gem versions is not allowed.\n" \
-               "Please use `gem yank` to remove bad gem releases.", 409)
-
+      if (version = @rubygem.find_version_from_spec spec)
+        republish_notification(version)
         return false
       end
 
@@ -80,9 +76,11 @@ class Pusher
     sha256 = Digest::SHA2.base64digest(body.string)
 
     @version = @rubygem.versions.new number: spec.version.to_s,
+                                     canonical_number: spec.version.canonical_segments.join("."),
                                      platform: spec.original_platform.to_s,
                                      size: size,
-                                     sha256: sha256
+                                     sha256: sha256,
+                                     pusher: user
 
     true
   end
@@ -99,11 +97,14 @@ class Pusher
 
   def after_write
     @version_id = version.id
+    version.rubygem.push_notifiable_owners.each do |notified_user|
+      Mailer.delay.gem_pushed(user.id, @version_id, notified_user.id)
+    end
     Delayed::Job.enqueue Indexer.new, priority: PRIORITIES[:push]
     rubygem.delay.index_document
     GemCachePurger.call(rubygem.name)
-    enqueue_web_hook_jobs
-    StatsD.increment 'push.success'
+    RackAttackReset.gem_push_backoff(@remote_ip) if @remote_ip.present?
+    StatsD.increment "push.success"
   end
 
   def notify(message, code)
@@ -123,15 +124,28 @@ class Pusher
     false
   end
 
-  def enqueue_web_hook_jobs
-    jobs = rubygem.web_hooks + WebHook.global
-    jobs.each do |job|
-      job.fire(@protocol, @host_with_port, rubygem, version)
-    end
-  end
-
   def set_info_checksum
     checksum = GemInfo.new(rubygem.name).info_checksum
     version.update_attribute :info_checksum, checksum
+  end
+
+  def republish_notification(version)
+    if version.indexed?
+      notify("Repushing of gem versions is not allowed.\n" \
+            "Please use `gem yank` to remove bad gem releases.", 409)
+    else
+      different_owner = "pushed by a previous owner of this gem " unless version.rubygem.owners.include?(@user)
+      notify("A yanked version #{different_owner}already exists (#{version.full_name}).\n" \
+            "Repushing of gem versions is not allowed. Please use a new version and retry", 409)
+    end
+  end
+
+  def notify_unauthorized
+    if rubygem.unconfirmed_ownership?(user)
+      notify("You do not have permission to push to this gem. "\
+        "Please confirm the ownership by clicking on the confirmation link sent your email #{user.email}", 403)
+    else
+      notify("You do not have permission to push to this gem. Ask an owner to add you with: gem owner #{rubygem.name} --add #{user.email}", 403)
+    end
   end
 end

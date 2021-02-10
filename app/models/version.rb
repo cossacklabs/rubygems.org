@@ -1,31 +1,39 @@
-require 'digest/sha2'
+require "digest/sha2"
 require 'activerecord_acrawriter'
 
 class Version < ApplicationRecord
-  belongs_to :rubygem, touch: true
-  has_many :dependencies, -> { order('rubygems.name ASC').includes(:rubygem) }, dependent: :destroy, inverse_of: "version"
-  has_one :gem_download, proc { |m| where(rubygem_id: m.rubygem_id) }, inverse_of: :version
+  MAX_TEXT_FIELD_LENGTH = 64_000
 
-  before_save :update_prerelease
+  belongs_to :rubygem, touch: true
+  has_many :dependencies, -> { order("rubygems.name ASC").includes(:rubygem) }, dependent: :destroy, inverse_of: "version"
+  has_one :gem_download, inverse_of: :version, dependent: :destroy
+  belongs_to :pusher, class_name: "User", foreign_key: "pusher_id", inverse_of: false, optional: true
+
+  before_save :update_prerelease, if: :number_changed?
   before_validation :full_nameify!
-  after_save :reorder_versions
+  after_save :reorder_versions, if: -> { saved_change_to_indexed? || saved_change_to_id? }
+  after_save :refresh_rubygem_indexed, if: -> { saved_change_to_indexed? || saved_change_to_id? }
 
   serialize :licenses
   serialize :requirements
 
-  validates :number,   format: { with: /\A#{Gem::Version::VERSION_PATTERN}\z/ }
-  validates :platform, format: { with: Rubygem::NAME_PATTERN }
+  validates :number, length: { maximum: Gemcutter::MAX_FIELD_LENGTH }, format: { with: /\A#{Gem::Version::VERSION_PATTERN}\z/ }
+  validates :platform, length: { maximum: Gemcutter::MAX_FIELD_LENGTH }, format: { with: Rubygem::NAME_PATTERN }
   validates :full_name, presence: true, uniqueness: { case_sensitive: false }
   validates :rubygem, presence: true
+  validates :required_rubygems_version, :licenses, length: { maximum: Gemcutter::MAX_FIELD_LENGTH }, allow_blank: true
+  validates :description, :summary, :authors, :requirements, length: { minimum: 0, maximum: MAX_TEXT_FIELD_LENGTH }, allow_blank: true
 
+  validate :unique_canonical_number, on: :create
   validate :platform_and_number_are_unique, on: :create
   validate :authors_format, on: :create
   validate :metadata_links_format
+  validate :metadata_attribute_length
 
   class AuthorType < AcraType
     def cast_value(value)
       if value.is_a?(Array)
-        value.join(', ')
+        value.join(", ")
       else
         super
       end
@@ -46,7 +54,7 @@ class Version < ApplicationRecord
   def self.reverse_dependencies(name)
     joins(dependencies: :rubygem)
       .indexed
-      .where(rubygems: { name: name })
+      .where(rubygems_dependencies: { name: name })
   end
 
   def self.reverse_runtime_dependencies(name)
@@ -92,14 +100,6 @@ class Version < ApplicationRecord
     order(:position)
   end
 
-  def self.by_built_at
-    order(built_at: :desc)
-  end
-
-  def self.by_earliest_built_at
-    order(built_at: :asc)
-  end
-
   def self.by_created_at
     order(created_at: :desc)
   end
@@ -109,7 +109,7 @@ class Version < ApplicationRecord
       .indexed
       .release
       .order("rubygems.name asc, position desc")
-      .pluck('rubygems.name', :number, :platform)
+      .pluck("rubygems.name", :number, :platform)
   end
 
   def self.rows_for_latest_index
@@ -117,7 +117,7 @@ class Version < ApplicationRecord
       .indexed
       .latest
       .order("rubygems.name asc, position desc")
-      .pluck('rubygems.name', :number, :platform)
+      .pluck("rubygems.name", :number, :platform)
   end
 
   def self.rows_for_prerelease_index
@@ -125,34 +125,35 @@ class Version < ApplicationRecord
       .indexed
       .prerelease
       .order("rubygems.name asc, position desc")
-      .pluck('rubygems.name', :number, :platform)
+      .pluck("rubygems.name", :number, :platform)
   end
 
   def self.most_recent
-    latest.find_by(platform: 'ruby') || latest.order(number: :desc).first || last
+    latest.find_by(platform: "ruby") || latest.order(number: :desc).first || last
   end
 
   # This method returns the new versions for brand new rubygems
   def self.new_pushed_versions(limit = 5)
     subquery = <<-SQL
-      versions.id IN (SELECT max(versions.id)
-                                FROM versions
-                            GROUP BY versions.rubygem_id
-                              HAVING COUNT(versions.rubygem_id) = 1)
+      versions.rubygem_id IN (SELECT versions.rubygem_id FROM versions
+        GROUP BY versions.rubygem_id HAVING COUNT(versions.rubygem_id) = 1
+        ORDER BY versions.rubygem_id DESC LIMIT :limit)
     SQL
 
-    Version.where(subquery).by_created_at.limit limit
+    where(subquery, limit: limit).by_created_at
   end
 
   def self.just_updated(limit = 5)
     subquery = <<-SQL
       versions.rubygem_id IN (SELECT versions.rubygem_id
                                 FROM versions
+                            WHERE versions.indexed = 'true'
                             GROUP BY versions.rubygem_id
-                              HAVING COUNT(versions.id) > 1)
+                              HAVING COUNT(versions.id) > 1
+                              ORDER BY MAX(created_at) DESC LIMIT :limit)
     SQL
 
-    where(subquery)
+    where(subquery, limit: limit)
       .joins(:rubygem)
       .indexed
       .by_created_at
@@ -169,7 +170,7 @@ class Version < ApplicationRecord
   end
 
   def self.rubygem_name_for(full_name)
-    find_by(full_name: full_name).try(:rubygem).try(:name)
+    find_by(full_name: full_name)&.rubygem&.name
   end
 
   def self.created_between(start_time, end_time)
@@ -181,6 +182,10 @@ class Version < ApplicationRecord
   end
 
   delegate :reorder_versions, to: :rubygem
+
+  def refresh_rubygem_indexed
+    rubygem.refresh_indexed!
+  end
 
   def previous
     rubygem.versions.find_by(position: position + 1)
@@ -195,7 +200,7 @@ class Version < ApplicationRecord
   end
 
   def size
-    self[:size] || 'N/A'
+    self[:size] || "N/A"
   end
 
   def byte_size
@@ -249,26 +254,26 @@ class Version < ApplicationRecord
   end
 
   def downloads_count
-    gem_download.try(:count) || 0
+    gem_download&.count || 0
   end
 
   def payload
     {
-      'authors'                    => authors,
-      'built_at'                   => built_at,
-      'created_at'                 => created_at,
-      'description'                => description,
-      'downloads_count'            => downloads_count,
-      'metadata'                   => metadata,
-      'number'                     => number,
-      'summary'                    => summary,
-      'platform'                   => platform,
-      'rubygems_version'           => required_rubygems_version,
-      'ruby_version'               => required_ruby_version,
-      'prerelease'                 => prerelease,
-      'licenses'                   => licenses,
-      'requirements'               => requirements,
-      'sha'                        => sha256_hex
+      "authors"                    => authors,
+      "built_at"                   => built_at,
+      "created_at"                 => created_at,
+      "description"                => description,
+      "downloads_count"            => downloads_count,
+      "metadata"                   => metadata,
+      "number"                     => number,
+      "summary"                    => summary,
+      "platform"                   => platform,
+      "rubygems_version"           => required_rubygems_version,
+      "ruby_version"               => required_ruby_version,
+      "prerelease"                 => prerelease,
+      "licenses"                   => licenses,
+      "requirements"               => requirements,
+      "sha"                        => sha256_hex
     }
   end
 
@@ -277,7 +282,7 @@ class Version < ApplicationRecord
   end
 
   def to_xml(options = {})
-    payload.to_xml(options.merge(root: 'version'))
+    payload.to_xml(options.merge(root: "version"))
   end
 
   def to_s
@@ -322,7 +327,7 @@ class Version < ApplicationRecord
   end
 
   def authors_array
-    authors.split(',').flatten
+    authors.split(",").flatten
   end
 
   def sha256_hex
@@ -330,14 +335,31 @@ class Version < ApplicationRecord
   end
 
   def self._sha256_hex(raw)
-    raw.unpack("m0").first.unpack("H*").first
+    raw.unpack1("m0").unpack1("H*")
   end
+
+  def metadata_uri_set?
+    Links::LINKS.any? { |_, long| metadata.key? long }
+  end
+
+  def yanker
+    Deletion.find_by(rubygem: rubygem.name, number: number, platform: platform)&.user unless indexed
+  end
+
+  def prerelease
+    !!to_gem_version.prerelease?
+  end
+  alias prerelease? prerelease
 
   private
 
+  def update_prerelease
+    self[:prerelease] = prerelease
+  end
+
   def platform_and_number_are_unique
     return unless Version.exists?(rubygem_id: rubygem_id, number: number, platform: platform)
-    errors[:base] << "A version already exists with this number or platform."
+    errors.add(:base, "A version already exists with this number or platform.")
   end
 
   def authors_format
@@ -348,10 +370,6 @@ class Version < ApplicationRecord
     errors.add :authors, "must be an Array of Strings"
   end
 
-  def update_prerelease
-    self[:prerelease] = !!to_gem_version.prerelease? # rubocop:disable Style/DoubleNegation
-  end
-
   def full_nameify!
     return if rubygem.nil?
     self.full_name = "#{rubygem.name}-#{number}"
@@ -359,7 +377,7 @@ class Version < ApplicationRecord
   end
 
   def feature_release(number)
-    feature_version = Gem::Version.new(number).segments[0, 2].join('.')
+    feature_version = Gem::Version.new(number).segments[0, 2].join(".")
     Gem::Version.new(feature_version)
   end
 
@@ -368,5 +386,22 @@ class Version < ApplicationRecord
       errors.add(:metadata, "['#{link}'] does not appear to be a valid URL") if
         metadata[link] && metadata[link] !~ Patterns::URL_VALIDATION_REGEXP
     end
+  end
+
+  def metadata_attribute_length
+    return if metadata.blank?
+
+    max_key_size = 128
+    max_value_size = 1024
+    metadata.each do |key, value|
+      errors.add(:metadata, "metadata key ['#{key}'] is too large (maximum is #{max_key_size} bytes)") if key.size > max_key_size
+      errors.add(:metadata, "metadata value ['#{value}'] is too large (maximum is #{max_value_size} bytes)") if value.size > max_value_size
+      errors.add(:metadata, "metadata key is empty") if key.empty?
+    end
+  end
+
+  def unique_canonical_number
+    version = Version.find_by(canonical_number: canonical_number, rubygem_id: rubygem_id, platform: platform)
+    errors.add(:canonical_number, "has already been taken. Existing version: #{version.number}") unless version.nil?
   end
 end

@@ -1,10 +1,11 @@
 class WebHook < ApplicationRecord
-  GLOBAL_PATTERN = '*'.freeze
+  GLOBAL_PATTERN = "*".freeze
 
   belongs_to :user
-  belongs_to :rubygem
+  belongs_to :rubygem, optional: true
 
   validates_formatting_of :url, using: :url, message: "does not appear to be a valid URL"
+  validates :url, length: { maximum: Gemcutter::MAX_FIELD_LENGTH }, presence: true
   validate :unique_hook, on: :create
 
   def self.global
@@ -15,7 +16,7 @@ class WebHook < ApplicationRecord
     where.not(rubygem_id: nil)
   end
 
-  def fire(protocol, host_with_port, deploy_gem, version, delayed = true)
+  def fire(protocol, host_with_port, deploy_gem, version, delayed: true)
     job = Notifier.new(url, protocol, host_with_port, deploy_gem, version, user.api_key)
     if delayed
       Delayed::Job.enqueue job, priority: PRIORITIES[:web_hook]
@@ -54,8 +55,8 @@ class WebHook < ApplicationRecord
 
   def payload
     {
-      'failure_count' => failure_count,
-      'url'           => url
+      "failure_count" => failure_count,
+      "url"           => url
     }
   end
 
@@ -64,7 +65,7 @@ class WebHook < ApplicationRecord
   end
 
   def to_xml(options = {})
-    payload.to_xml(options.merge(root: 'web_hook'))
+    payload.to_xml(options.merge(root: "web_hook"))
   end
 
   def to_yaml(*args)
@@ -84,16 +85,16 @@ class WebHook < ApplicationRecord
       if WebHook.exists?(user_id: user.id,
                          rubygem_id: rubygem.id,
                          url: url)
-        errors[:base] << "A hook for #{url} has already been registered for #{rubygem.name}"
+        errors.add(:base, "A hook for #{url} has already been registered for #{rubygem.name}")
       end
     elsif user
       if WebHook.exists?(user_id: user.id,
                          rubygem_id: nil,
                          url: url)
-        errors[:base] << "A global hook for #{url} has already been registered"
+        errors.add(:base, "A global hook for #{url} has already been registered")
       end
     else
-      errors[:base] << "A user is required for this hook"
+      errors.add(:base, "A user is required for this hook")
     end
   end
 end

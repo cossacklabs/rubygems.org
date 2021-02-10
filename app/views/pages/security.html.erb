@@ -1,4 +1,4 @@
-<% @title = "Security" %>
+<% @title = t('.title') %>
 
 <div class="l-colspan t-body">
   <p>
@@ -10,10 +10,10 @@
 
   <p>
     Before continuing, please ensure this is a security issue for the RubyGems
-    client or the RubyGems.org service. For all vulnerabilites with individual
-    gems, follow our guide on <a href="http://guides.rubygems.org/security/#reporting-security-vulnerabilities">
+    client or the RubyGems.org service. For all vulnerabilities with individual
+    gems, follow our guide on <a href="https://guides.rubygems.org/security/#reporting-security-vulnerabilities">
       reporting security issues</a> with others' gems. If it's a security issue
-    with the Ruby on Rails framework, see the <a href="http://rubyonrails.org/security/">
+    with the Ruby on Rails framework, see the <a href="https://rubyonrails.org/security/">
       Rails Security</a> guide.
   </p>
 
@@ -26,6 +26,15 @@
       The <a href="https://github.com/rubygems/rubygems">RubyGems</a> client library
       is in scope for bounty reward. You can read the details of the bounty
       program on the <a href="https://hackerone.com/rubygems">RubyGems HackerOne page</a>.
+    </strong>
+  </p>
+
+  <p>
+    <strong>
+      If you find a compromised or malicious gem, please consider it as a security issue:
+      please email <a href="mailto:security@rubygems.org">security@rubygems.org</a> with
+      the gem name or submit a report using <a href="https://hackerone.com/rubygems">HackerOne</a>.
+      Note that it is not in scope for bounty reward.
     </strong>
   </p>
 
@@ -46,7 +55,7 @@
   <h2>Reporting RubyGems.org Website Problems</h2>
   <p>
     If you're having trouble pushing a gem, or otherwise need help with your
-    RubyGems.org account, please <a href="http://help.rubygems.org">
+    RubyGems.org account, please <a href="mailto:support@rubygems.org">
       open a new help issue</a>.
   </p>
 
@@ -85,7 +94,7 @@
       include patches for all versions still under support. The changes are
       pushed to the public repository and new gems released to rubygems. At
       least 6 hours after the mailing list is notified, a copy of the advisory
-      will be published on the <a href="http://blog.rubygems.org/"> RubyGems.org
+      will be published on the <a href="https://blog.rubygems.org/"> RubyGems.org
       blog</a>.
     </li>
   </ol>
