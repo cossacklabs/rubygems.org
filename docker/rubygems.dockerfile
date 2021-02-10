@@ -1,8 +1,11 @@
-FROM ruby:2.3.5-alpine
+FROM ruby:2.7-alpine as build
 
 # Product version
 ARG DOCKER_IMAGE_VERSION
 ENV DOCKER_IMAGE_VERSION ${DOCKER_IMAGE_VERSION:-0.0.0}
+ARG RUBYGEMS_VERSION
+# As suggested in docs https://github.com/rubygems/rubygems.org/blob/master/CONTRIBUTING.md#environment-linux---debianubuntu
+ENV RUBYGEMS_VERSION ${RUBYGEMS_VERSION:-3.1.5}
 # Link to the product repository
 ARG VCS_URL
 # Hash of the commit
@@ -34,20 +37,16 @@ EXPOSE 3000
 VOLUME /app.acrakeys
 
 RUN apk add --no-cache \
-  bash \
-  build-base \
-  ca-certificates \
-  git \
-  libxml2-dev \
-  libxslt-dev \
-  linux-headers \
   nodejs \
-  postgresql-client \
   postgresql-dev \
-  ruby \
-  ruby-dev \
-  tzdata \
+  ca-certificates \
+  build-base \
+  bash \
+  linux-headers \
   zlib-dev \
+  tzdata \
+  git \
+  openssl-dev \
   && rm -rf /var/cache/apk/*
 
 # TODO : remove when themis will fully support alpine
@@ -57,16 +56,52 @@ RUN chmod +x /usr/sbin/ldconfig
 RUN cd /root && git clone https://github.com/cossacklabs/themis.git
 RUN cd /root/themis && git checkout 0.10.0 && make && make install
 
-RUN mkdir -p /app
+RUN mkdir -p /app /app/config /app/log/
 WORKDIR /app
 
-RUN gem update --system 2.6.10
+RUN gem update --system $RUBYGEMS_VERSION
 
 COPY . /app
 
-RUN gem install bundler io-console --no-ri --no-rdoc && bundle install --jobs 20 --retry 5 --without deploy
+ADD https://s3-us-west-2.amazonaws.com/oregon.production.s3.rubygems.org/versions/versions.list /app/config/versions.list
+ADD https://s3-us-west-2.amazonaws.com/oregon.production.s3.rubygems.org/stopforumspam/toxic_domains_whole.txt /app/vendor/toxic_domains_whole.txt
+
+RUN mv /app/config/database.yml.example /app/config/database.yml
+
+
+RUN bundle config set --local without 'test' && \
+  bundle install --jobs 20 --retry 5
+
+RUN RAILS_ENV=production RAILS_GROUPS=assets SECRET_KEY_BASE=1234 bin/rails assets:precompile
+
+RUN bundle config set --local without 'test' && \
+  bundle clean --force
+
+
+FROM ruby:2.7-alpine
+
+ARG RUBYGEMS_VERSION
+
+RUN apk add --no-cache \
+  libpq \
+  ca-certificates \
+  bash \
+  tzdata \
+  xz-libs \
+  openssl \
+  && rm -rf /var/cache/apk/*
+
+RUN gem update --system $RUBYGEMS_VERSION
+
+RUN mkdir -p /app
+WORKDIR /app
+
+COPY --from=build /usr/local/bundle/ /usr/local/bundle/
+COPY --from=build /app/ /app/
+COPY --from=build /usr/lib/libthemis.so /usr/lib/libthemis.so
+COPY --from=build /usr/lib/libsoter.so /usr/lib/libsoter.so
+
+EXPOSE 3000
 
 RUN chmod +x /app/docker/entry.sh
-
-WORKDIR /app
 ENTRYPOINT ["/app/docker/entry.sh"]

@@ -50,7 +50,5 @@ production:
   secret_key_base: <%= ENV["SECRET_KEY_BASE"] %>
 EOF
 
-cd /app
-RAILS_ENV=production SECRET_KEY_BASE=1234 bin/rails assets:precompile
 bin/rails db:migrate RAILS_ENV=development
 exec bundle exec rails server -b 0.0.0.0
