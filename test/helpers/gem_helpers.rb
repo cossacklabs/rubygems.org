@@ -1,6 +1,6 @@
 module GemHelpers
   def gem_specification_from_gem_fixture(name)
-    Gem::Package.new(File.join('test', 'gems', "#{name}.gem")).spec
+    Gem::Package.new(File.join("test", "gems", "#{name}.gem")).spec
   end
 
   def gem_file(name = "test-0.0.0.gem")
@@ -9,7 +9,7 @@ module GemHelpers
 
   def build_gemspec(gemspec)
     Gem::DefaultUserInteraction.use_ui(Gem::StreamUI.new(StringIO.new, StringIO.new)) do
-      Gem::Package.build(gemspec)
+      Gem::Package.build(gemspec, true)
     end
   end
 
@@ -20,12 +20,12 @@ module GemHelpers
   def new_gemspec(name, version, summary, platform, extra_args = {})
     ruby_version = extra_args[:ruby_version]
     rubygems_version = extra_args[:rubygems_version]
-    gemspec = Gem::Specification.new do |s|
+    Gem::Specification.new do |s|
       s.name = name
       s.platform = platform
       s.version = version.to_s
       s.authors = ["Someone"]
-      s.date = Time.zone.now.strftime('%Y-%m-%d')
+      s.date = Time.zone.now.strftime("%Y-%m-%d")
       s.description = summary.to_s
       s.email = "someone@example.com"
       s.files = []
@@ -39,11 +39,5 @@ module GemHelpers
       s.metadata = { "foo" => "bar" }
       yield s if block_given?
     end
-
-    gemspec.define_singleton_method(:validate) do
-      "not validating on purpose"
-    end
-
-    gemspec
   end
 end

@@ -1,25 +1,50 @@
 module RubygemSearchable
-  include Patterns
   extend ActiveSupport::Concern
 
   included do
     include Elasticsearch::Model
 
     index_name "rubygems-#{Rails.env}"
+    document_type "rubygem"
 
     delegate :index_document, to: :__elasticsearch__
     delegate :update_document, to: :__elasticsearch__
 
-    def as_indexed_json(_options = {})
-      most_recent_version = versions.most_recent
+    def as_indexed_json(_options = {}) # rubocop:disable Metrics/MethodLength
+      if (latest_version = versions.most_recent)
+        deps = latest_version.dependencies.to_a
+        versioned_links = links(latest_version)
+      end
+
       {
-        name:                  name,
-        yanked:                versions.none?(&:indexed?),
-        summary:               most_recent_version.try(:summary),
-        description:           most_recent_version.try(:description),
-        downloads:             downloads,
-        latest_version_number: most_recent_version.try(:number),
-        updated:               updated_at
+        name:              name,
+        downloads:         downloads,
+        version:           latest_version&.number,
+        version_downloads: latest_version&.downloads_count,
+        platform:          latest_version&.platform,
+        authors:           latest_version&.authors,
+        info:              latest_version&.info,
+        licenses:          latest_version&.licenses,
+        metadata:          latest_version&.metadata,
+        sha:               latest_version&.sha256_hex,
+        project_uri:       "#{Gemcutter::PROTOCOL}://#{Gemcutter::HOST}/gems/#{name}",
+        gem_uri:           "#{Gemcutter::PROTOCOL}://#{Gemcutter::HOST}/gems/#{latest_version&.full_name}.gem",
+        homepage_uri:      versioned_links&.homepage_uri,
+        wiki_uri:          versioned_links&.wiki_uri,
+        documentation_uri: versioned_links&.documentation_uri,
+        mailing_list_uri:  versioned_links&.mailing_list_uri,
+        source_code_uri:   versioned_links&.source_code_uri,
+        bug_tracker_uri:   versioned_links&.bug_tracker_uri,
+        changelog_uri:     versioned_links&.changelog_uri,
+        funding_uri:       versioned_links&.funding_uri,
+        yanked:            versions.none?(&:indexed?),
+        summary:           latest_version&.summary,
+        description:       latest_version&.description,
+        updated:           updated_at,
+        dependencies: {
+          development: deps&.select { |r| r.rubygem && r.scope == "development" },
+          runtime: deps&.select { |r| r.rubygem && r.scope == "runtime" }
+        }
       }
     end
 
@@ -28,110 +53,40 @@ module RubygemSearchable
              analysis: {
                analyzer: {
                  rubygem: {
-                   type: 'pattern',
-                   pattern: "[\s#{Regexp.escape(SPECIAL_CHARACTERS)}]+"
+                   type: "pattern",
+                   pattern: "[\s#{Regexp.escape(Patterns::SPECIAL_CHARACTERS)}]+"
                  }
                }
              }
 
     mapping do
-      indexes :name, type: 'text', analyzer: 'rubygem' do
-        indexes :suggest, analyzer: 'simple'
+      indexes :name, type: "text", analyzer: "rubygem" do
+        indexes :suggest, analyzer: "simple"
+        indexes :unanalyzed, type: "keyword", index: "true"
       end
-      indexes :summary, type: 'text', analyzer: 'english' do
-        indexes :raw, analyzer: 'simple'
+      indexes :summary, type: "text", analyzer: "english" do
+        indexes :raw, analyzer: "simple"
       end
-      indexes :description, type: 'text', analyzer: 'english' do
-        indexes :raw, analyzer: 'simple'
+      indexes :description, type: "text", analyzer: "english" do
+        indexes :raw, analyzer: "simple"
       end
-      indexes :yanked, type: 'boolean'
-      indexes :downloads, type: 'integer'
-      indexes :updated, type: 'date'
-    end
-
-    def self.search(query, elasticsearch: false, page: 1)
-      return [nil, legacy_search(query).page(page)] unless elasticsearch
-      result = elastic_search(query).page(page)
-      # Now we need to trigger the ES query so we can fallback if it fails
-      # rather than lazy loading from the view
-      result.response
-      [nil, result]
-    rescue Faraday::ConnectionFailed, Faraday::TimeoutError, Elasticsearch::Transport::Transport::Error => e
-      msg = error_msg query, e
-      [msg, legacy_search(query).page(page)]
-    end
-
-    def self.elastic_search(query) # rubocop:disable Metrics/MethodLength
-      search_definition = Elasticsearch::DSL::Search.search do
-        query do
-          function_score do
-            query do
-              bool do
-                # Main query, search in name, summary, description
-                should do
-                  query_string do
-                    query query
-                    fields ['name^5', 'summary^3', 'description']
-                    default_operator 'and'
-                  end
-                end
-                minimum_should_match 1
-                # only return gems that are not yanked
-                filter { term yanked: false }
-              end
-            end
-
-            # Boost the score based on number of downloads
-            functions << { field_value_factor: { field: :downloads, modifier: :log1p } }
-          end
-        end
-
-        aggregation :matched_field do
-          filters do
-            filters name: { terms: { name: [query] } },
-                    summary: { terms: { 'summary.raw' => [query] } },
-                    description: { terms: { 'description.raw' => [query] } }
-          end
-        end
-
-        aggregation :date_range do
-          date_range do
-            field  'updated'
-            ranges [{ from: 'now-7d/d', to: 'now' }, { from: 'now-30d/d', to: 'now' }]
-          end
-        end
-
-        source %w[name summary description downloads latest_version_number]
-
-        # Return suggestions unless there's no query from the user
-        suggest :suggest_name, text: query, term: { field: 'name.suggest', suggest_mode: 'always' } if query.present?
-      end
-      __elasticsearch__.search(search_definition)
+      indexes :yanked, type: "boolean"
+      indexes :downloads, type: "integer"
+      indexes :updated, type: "date"
     end
 
     def self.legacy_search(query)
       conditions = <<-SQL
         versions.indexed and
           (UPPER(name) LIKE UPPER(:query) OR
-           UPPER(TRANSLATE(name,
-                           '#{SPECIAL_CHARACTERS}',
-                           '#{' ' * SPECIAL_CHARACTERS.length}')
-                ) LIKE UPPER(:query))
+           UPPER(TRANSLATE(name, :match, :replace)) LIKE UPPER(:query))
       SQL
 
-      where(conditions, query: "%#{query.strip}%")
+      replace_characters = " " * Patterns::SPECIAL_CHARACTERS.length
+      where(conditions, query: "%#{query.strip}%", match: Patterns::SPECIAL_CHARACTERS, replace: replace_characters)
         .includes(:latest_version, :gem_download)
         .references(:versions)
         .by_downloads
-    end
-
-    def self.error_msg(query, error)
-      if error.is_a? Elasticsearch::Transport::Transport::Errors::BadRequest
-        "Failed to parse: '#{query}'. Falling back to legacy search."
-      else
-        Honeybadger.notify(error)
-        "Advanced search is currently unavailable. Falling back to legacy search."
-      end
     end
   end
 end

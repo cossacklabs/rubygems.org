@@ -1,4 +1,4 @@
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: unicorn
@@ -15,6 +15,8 @@ spec:
       name: unicorn
   template:
     metadata:
+      annotations:
+        ad.datadoghq.com/unicorn.logs: '[{"source":"rails","service":"rubygems.org"}]'
       labels:
         name: unicorn
     spec:
@@ -25,13 +27,32 @@ spec:
         ports:
         - containerPort: 3000
           name: http-unicorn
+        readinessProbe:
+          httpGet:
+            path: /internal/ping
+            port: 3000
+            httpHeaders:
+            - name: X-Forwarded-Proto
+              value: https
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 5
         resources:
+          <% if environment == 'production' %>
+          requests:
+            cpu: 4000m
+            memory: 5Gi
+          limits:
+            cpu: 5000m
+            memory: 6Gi
+          <% else %>
           requests:
             cpu: 200m
             memory: 1.5Gi
           limits:
             cpu: 1000m
             memory: 2Gi
+          <% end %>
         env:
           - name: RAILS_ENV
             value: "<%= environment %>"
@@ -39,6 +60,13 @@ spec:
             value: "<%= environment %>"
           - name: STATSD_IMPLEMENTATION
             value: "datadog"
+          - name: STATSD_HOST
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: status.hostIP
+          - name: STATSD_ADDR
+            value: $(STATSD_HOST):8125
           - name: SECRET_KEY_BASE
             valueFrom:
               secretKeyRef:
@@ -90,11 +118,11 @@ spec:
               secretKeyRef:
                 name: <%= environment %>
                 key: fastly_service_id
-          - name: FASTLY_DOMAIN
+          - name: FASTLY_DOMAINS
             valueFrom:
               secretKeyRef:
                 name: <%= environment %>
-                key: fastly_domain
+                key: fastly_domains
           - name: ELASTICSEARCH_URL
             valueFrom:
               secretKeyRef:
@@ -115,8 +143,22 @@ spec:
               secretKeyRef:
                 name: <%= environment %>
                 key: sendgrid_password
+          - name: SENDGRID_WEBHOOK_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: <%= environment %>
+                key: sendgrid_webhook_username
+          - name: SENDGRID_WEBHOOK_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: <%= environment %>
+                key: sendgrid_webhook_password
+          <% if environment == 'staging' %>
           - name: DISABLE_SIGNUP
             value: "true"
+          - name: RAILS_LOG_LEVEL
+            value: "info"
+          <% end %>
           - name: DATABASE_URL
             valueFrom:
               secretKeyRef:
@@ -127,4 +169,76 @@ spec:
         lifecycle:
           preStop:
             exec:
-              command: ["sleep", "5"]
+              command: ["sleep", "25"]
+      - name: nginx
+        image: nginx:1.11.10
+        imagePullPolicy: IfNotPresent
+        lifecycle:
+          preStop:
+            exec:
+              command: ["sleep", "20"]
+        ports:
+        - containerPort: 8080
+          name: http-nginx
+          protocol: TCP
+        resources:
+          <% if environment == 'production' %>
+          requests:
+            cpu: 100m
+            memory: 20Mi
+          limits:
+            cpu: 300m
+            memory: 200Mi
+          <% else %>
+          requests:
+            cpu: 20m
+            memory: 10Mi
+          limits:
+            cpu: 60m
+            memory: 100Mi
+          <% end %>
+        volumeMounts:
+          - name: nginxconfig
+            mountPath: /etc/nginx
+            readOnly: true
+          - name: nginxlog
+            mountPath: /var/log/nginx
+          - name: nginxcache
+            mountPath: /var/lib/nginx/cache
+          <% if environment == 'staging' %>
+          - name: nginxbasicauth
+            mountPath: /etc/nginxbasicauth
+            readOnly: true
+          <% end %>
+        livenessProbe:
+          httpGet:
+            path: /nginx_health
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /nginx_health
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+        - name: nginxconfig
+          configMap:
+            name: nginx-configmap
+            items:
+              - key: default
+                path: nginx.conf
+              - key: logging
+                path: conf.d/logging.conf
+              - key: rubygems
+                path: sites-enabled/<%= environment %>.ruybgems.conf
+        - name: nginxlog
+          emptyDir: {}
+        - name: nginxcache
+          emptyDir: {}
+        <% if environment == 'staging' %>
+        - name: nginxbasicauth
+          secret:
+            secretName: nginx-basic-auth
+        <% end %>

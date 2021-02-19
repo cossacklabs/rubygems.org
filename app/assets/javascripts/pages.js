@@ -1,5 +1,4 @@
 //data page
-
 $(document).ready(function() {
   var getDumpData = function(target, type) {
     return $.get('https://s3-us-west-2.amazonaws.com/rubygems-dumps/?prefix=production/public_' + type).done(function(data) {
@@ -53,9 +52,7 @@ $(document).ready(function() {
     return content.join("\n");
   };
 
-  data_title = "RubyGems.org Data Dumps | RubyGems.org | your community gem host";
-  page_title = $(document).find("title").text();
-  if(page_title === data_title){
+  if($("#data-dump").length) {
     getDumpData('ul.rubygems-dump-listing-postgresql', 'postgresql');
     getDumpData('ul.rubygems-dump-listing-redis', 'redis');
   }
@@ -64,5 +61,15 @@ $(document).ready(function() {
 //stats page
 $('.stats__graph__gem__meter').each(function() {
   bar_width = $(this).data("bar_width");
-  $(this).animate({ width: bar_width + '%' }, 700).removeClass('t-item--hidden');
+  $(this).animate({ width: bar_width + '%' }, 700).removeClass('t-item--hidden').css("display", "block");
+});
+
+//gem page
+$(document).ready(function() {
+  $('.gem__users__mfa-text.mfa-warn').on('click', function() {
+    $('.gem__users__mfa-text.mfa-warn').toggleClass('t-item--hidden');
+
+    $owners = $('.gem__users__mfa-disabled');
+    $owners.toggleClass('t-item--hidden');
+  });
 });

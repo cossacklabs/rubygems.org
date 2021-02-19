@@ -1,4 +1,4 @@
-require 'test_helper'
+require "test_helper"
 
 class StatsControllerTest < ActionController::TestCase
   context "on GET to index" do
@@ -6,10 +6,10 @@ class StatsControllerTest < ActionController::TestCase
       @number_of_gems      = 1337
       @number_of_users     = 101
       @number_of_downloads = 42
-      rails_cinco = create(:rubygem, name: 'rails_cinco', number: 1)
+      rails_cinco = create(:rubygem, name: "rails_cinco", number: 1)
 
-      Rubygem.stubs(:total_count).returns @number_of_gems
-      User.stubs(:count).returns @number_of_users
+      Rubygem.expects(:total_count).returns(@number_of_gems)
+      User.expects(:count).returns(@number_of_users)
 
       create(:gem_download, count: @number_of_downloads)
       rails_cinco.gem_download.update(count: 1)
@@ -33,11 +33,6 @@ class StatsControllerTest < ActionController::TestCase
 
     should "display the top gem" do
       assert page.has_content?("rails_cinco")
-    end
-
-    should "load up the number of gems, users, and downloads" do
-      assert_received(User, :count)
-      assert_received(Rubygem, :total_count)
     end
   end
 
@@ -65,7 +60,7 @@ class StatsControllerTest < ActionController::TestCase
     should "not have width greater than 100%" do
       assert_select ".stats__graph__gem__meter" do |element|
         element.map { |h| h[:style] }.each do |width|
-          width =~ /width\: (\d+[,.]\d+)%/
+          width =~ /width: (\d+[,.]\d+)%/
           assert Regexp.last_match(1).to_f <= 100, "#{Regexp.last_match(1)} is greater than 100"
         end
       end

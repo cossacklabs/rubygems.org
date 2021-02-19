@@ -1,4 +1,4 @@
-require 'test_helper'
+require "test_helper"
 
 class RedirectorTest < ActiveSupport::TestCase
   include Rack::Test::Methods
@@ -56,36 +56,20 @@ class RedirectorTest < ActiveSupport::TestCase
   end
 
   should "not redirect docs.rubygems.org to a url that redirects back to docs.rubygems.org" do
-    get '/read/book/2', {}, "HTTP_HOST" => 'docs.rubygems.org'
+    get "/read/book/2", {}, "HTTP_HOST" => "docs.rubygems.org"
 
     assert_equal 200, last_response.status
-  end
-
-  should "redirect request to docs to guides " do
-    get "/pages/docs", {}, "HTTP_HOST" => Gemcutter::HOST
-
-    assert_equal 301, last_response.status
-    assert_equal "http://guides.rubygems.org", last_response.headers["Location"]
-  end
-
-  should "redirect request to gem docs to guides " do
-    get "/pages/gem_docs", {}, "HTTP_HOST" => Gemcutter::HOST
-
-    assert_equal 301, last_response.status
-    assert_equal "http://guides.rubygems.org/command-reference", last_response.headers["Location"]
-  end
-
-  should "redirect request to api docs to guides " do
-    get "/pages/api_docs", {}, "HTTP_HOST" => Gemcutter::HOST
-
-    assert_equal 301, last_response.status
-    assert_equal "http://guides.rubygems.org/rubygems-org-api", last_response.headers["Location"]
   end
 
   should "allow fastly domains" do
-    get "/", {}, "HTTP_HOST" => 'index.rubygems.org'
+    get "/", {}, "HTTP_HOST" => "index.rubygems.org"
     assert_equal 200, last_response.status
-    get "/", {}, "HTTP_HOST" => 'fastly.rubygems.org'
+    get "/", {}, "HTTP_HOST" => "fastly.rubygems.org"
+    assert_equal 200, last_response.status
+  end
+
+  should "allow healthcheck" do
+    get "/internal/ping", {}, "HTTP_HOST" => "localhost"
     assert_equal 200, last_response.status
   end
 end

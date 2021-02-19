@@ -1,4 +1,4 @@
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: shoryuken
@@ -15,6 +15,8 @@ spec:
       name: shoryuken
   template:
     metadata:
+      annotations:
+        ad.datadoghq.com/unicorn.logs: '[{"source":"rails","service":"rubygems.org"}]'
       labels:
         name: shoryuken
     spec:
@@ -23,12 +25,21 @@ spec:
         image: quay.io/rubygems/rubygems.org:<%= current_sha %>
         args: ["bin/shoryuken-worker"]
         resources:
+          <% if environment == 'production' %>
           requests:
-            cpu: 200m
+            cpu: 100m
+            memory: 300Mi
+          limits:
+            cpu: 400m
+            memory: 500Mi
+          <% else %>
+          requests:
+            cpu: 100m
             memory: 250Mi
           limits:
-            cpu: 500m
+            cpu: 400m
             memory: 300Mi
+          <% end %>
         env:
           - name: RAILS_ENV
             value: "<%= environment %>"
@@ -36,6 +47,13 @@ spec:
             value: "<%= environment %>"
           - name: STATSD_IMPLEMENTATION
             value: "datadog"
+          - name: STATSD_HOST
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: status.hostIP
+          - name: STATSD_ADDR
+            value: $(STATSD_HOST):8125
           - name: SECRET_KEY_BASE
             valueFrom:
               secretKeyRef:
@@ -85,11 +103,11 @@ spec:
               secretKeyRef:
                 name: <%= environment %>
                 key: fastly_service_id
-          - name: FASTLY_DOMAIN
+          - name: FASTLY_DOMAINS
             valueFrom:
               secretKeyRef:
                 name: <%= environment %>
-                key: fastly_domain
+                key: fastly_domains
           - name: ELASTICSEARCH_URL
             valueFrom:
               secretKeyRef:

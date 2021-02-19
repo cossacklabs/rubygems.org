@@ -1,4 +1,4 @@
-require 'test_helper'
+require "test_helper"
 
 class Api::V1::DependenciesControllerTest < ActionController::TestCase
   ## JSON ENDPOINTS:
@@ -31,6 +31,21 @@ class Api::V1::DependenciesControllerTest < ActionController::TestCase
     end
   end
 
+  # INVALID GEMS:
+  context "On GET to index --> with hash in gems params --> JSON" do
+    setup do
+      get :index, params: { gems: { 0 => "a", 1 => "b" } }, format: "json"
+    end
+
+    should "return 200" do
+      assert_response :success
+    end
+
+    should "return an empty body" do
+      assert_empty response.body
+    end
+  end
+
   # WITH GEMS:
   context "On GET to index --> with gems --> JSON" do
     setup do
@@ -45,10 +60,10 @@ class Api::V1::DependenciesControllerTest < ActionController::TestCase
 
     should "return body" do
       result = [{
-        'name'              => 'rails',
-        'number'            => '1.0.0',
-        'platform'          => 'ruby',
-        'dependencies'      => []
+        "name"              => "rails",
+        "number"            => "1.0.0",
+        "platform"          => "ruby",
+        "dependencies"      => []
       }]
 
       assert_equal result, JSON.load(response.body)
@@ -71,30 +86,30 @@ class Api::V1::DependenciesControllerTest < ActionController::TestCase
     end
 
     should "return surrogate key header" do
-      assert_equal "dependencyapi gem/myrails gem/mybundler", @response.headers['Surrogate-Key']
+      assert_equal "dependencyapi gem/myrails gem/mybundler", @response.headers["Surrogate-Key"]
     end
 
     should "return body" do
       result = [
         {
-          'name'              => 'myrails',
-          'number'            => '1.0.0',
-          'platform'          => 'ruby',
-          'dependencies'      => []
+          "name"              => "myrails",
+          "number"            => "1.0.0",
+          "platform"          => "ruby",
+          "dependencies"      => []
         },
 
         {
-          'name'              => 'myrails',
-          'number'            => '3.0.0',
-          'platform'          => 'ruby',
-          'dependencies'      => []
+          "name"              => "myrails",
+          "number"            => "3.0.0",
+          "platform"          => "ruby",
+          "dependencies"      => []
         },
 
         {
-          'name'              => 'mybundler',
-          'number'            => '2.0.0',
-          'platform'          => 'ruby',
-          'dependencies'      => []
+          "name"              => "mybundler",
+          "number"            => "2.0.0",
+          "platform"          => "ruby",
+          "dependencies"      => []
         }
       ]
 
@@ -105,7 +120,7 @@ class Api::V1::DependenciesControllerTest < ActionController::TestCase
   # TOO MANY GEMS:
   context "On GET to index --> with gems --> JSON" do
     setup do
-      gems = Array.new(300) { create(:rubygem) }.join(',')
+      gems = Array.new(300) { create(:rubygem) }.join(",")
       get :index, params: { gems: gems }, format: "json"
     end
 
@@ -141,6 +156,21 @@ class Api::V1::DependenciesControllerTest < ActionController::TestCase
     end
   end
 
+  # INVALID GEMS:
+  context "On GET to index --> with array in gems params --> Marshal" do
+    setup do
+      get :index, params: { gems: %w[a b] }, format: "marshal"
+    end
+
+    should "return 200" do
+      assert_response :success
+    end
+
+    should "return an empty body" do
+      assert_empty response.body
+    end
+  end
+
   # WITH GEMS:
   context "On GET to index --> with gems --> Marshal" do
     setup do
@@ -155,9 +185,9 @@ class Api::V1::DependenciesControllerTest < ActionController::TestCase
 
     should "return body" do
       result = [{
-        name:              'testgem',
-        number:            '1.0.0',
-        platform:          'ruby',
+        name:              "testgem",
+        number:            "1.0.0",
+        platform:          "ruby",
         dependencies:      []
       }]
 
@@ -168,7 +198,7 @@ class Api::V1::DependenciesControllerTest < ActionController::TestCase
   # TOO MANY GEMS:
   context "On GET to index --> with gems --> Marshal" do
     setup do
-      gems = Array.new(300) { create(:rubygem) }.join(',')
+      gems = Array.new(300) { create(:rubygem) }.join(",")
       get :index, params: { gems: gems }, format: "marshal"
     end
 

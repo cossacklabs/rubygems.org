@@ -1,4 +1,4 @@
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: jobs
@@ -15,6 +15,8 @@ spec:
       name: jobs
   template:
     metadata:
+      annotations:
+        ad.datadoghq.com/unicorn.logs: '[{"source":"rails","service":"rubygems.org"}]'
       labels:
         name: jobs
     spec:
@@ -23,12 +25,21 @@ spec:
         image: quay.io/rubygems/rubygems.org:<%= current_sha %>
         args: ["rake", "jobs:work"]
         resources:
+          <% if environment == 'production' %>
+          requests:
+            cpu: 500m
+            memory: 1.4Gi
+          limits:
+            cpu: 1000m
+            memory: 1.6Gi
+          <% else %>
           requests:
             cpu: 200m
             memory: 250Mi
           limits:
             cpu: 500m
-            memory: 300Mi
+            memory: 1.2Gi
+          <% end %>
         env:
           - name: RAILS_ENV
             value: "<%= environment %>"
@@ -36,6 +47,13 @@ spec:
             value: "<%= environment %>"
           - name: STATSD_IMPLEMENTATION
             value: "datadog"
+          - name: STATSD_HOST
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: status.hostIP
+          - name: STATSD_ADDR
+            value: $(STATSD_HOST):8125
           - name: SECRET_KEY_BASE
             valueFrom:
               secretKeyRef:
@@ -85,11 +103,11 @@ spec:
               secretKeyRef:
                 name: <%= environment %>
                 key: fastly_service_id
-          - name: FASTLY_DOMAIN
+          - name: FASTLY_DOMAINS
             valueFrom:
               secretKeyRef:
                 name: <%= environment %>
-                key: fastly_domain
+                key: fastly_domains
           - name: ELASTICSEARCH_URL
             valueFrom:
               secretKeyRef:

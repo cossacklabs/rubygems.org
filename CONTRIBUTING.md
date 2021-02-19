@@ -56,44 +56,49 @@ gems for your organization..**
 There is a `docker-compose.yml` file inside the project that easily lets you spin up
 services that the application depends on such as: postgresql, memcached & elasticsearch.
 
-* Install Docker. See instructions at https://docs.docker.com/engine/installation/ 
+* Install Docker. See instructions at https://docs.docker.com/engine/installation/
 * run `docker-compose up` to start the required services.
 
 Follow the instructions below on how to install Bundler and setup the database.
 
 #### Environment (OS X)
 
-* Use Ruby 2.3.5
-* Use Rubygems 2.6.10
+* Use Ruby 2.6.x (`.ruby-version` is present and can be used)
+* Use Rubygems 3.1.5
 * Install bundler: `gem install bundler`
 * Install Elastic Search:
-  * Pull ElasticSearch `5.1.2` : `docker pull docker.elastic.co/elasticsearch/elasticsearch:5.1.2`
+  * Pull ElasticSearch `6.8.13` : `docker pull docker.elastic.co/elasticsearch/elasticsearch:6.8.13`
   * Running Elasticsearch from the command line:
   ```
-  docker run -p 9200:9200 -e "http.host=0.0.0.0" -e "transport.host=127.0.0.1" docker.elastic.co/elasticsearch/elasticsearch:5.1.2
+  docker run -p 9200:9200 -e "http.host=0.0.0.0" -e "transport.host=127.0.0.1" -e "xpack.security.enabled=false" docker.elastic.co/elasticsearch/elasticsearch:6.8.13
   ```
+  * Note that `-e "xpack.security.enabled=false"` disables authentication.
 
-* Install PostgreSQL (>= 8.4.x): `brew install postgres`
+* Install PostgreSQL (>= 9.6.x): `brew install postgres`
   * Setup information: `brew info postgresql`
 * Install memcached: `brew install memcached`
   * Show all memcached options: `memcached -h`
+* Install Google-Chrome: `brew cask install google-chrome`
 
 #### Environment (Linux - Debian/Ubuntu)
 
-* Use Ruby 2.3.5 `apt-get install ruby2.3`
+* Use Ruby 2.6.x `apt-get install ruby2.6`
   * Or install via [alternate methods](https://www.ruby-lang.org/en/downloads/)
-* Use Rubygems 2.6.10
+* Use Rubygems 3.1.5
 * Install bundler: `gem install bundler`
-* Install Elastic Search:
-  * Pull ElasticSearch `5.1.2` : `docker pull docker.elastic.co/elasticsearch/elasticsearch:5.1.2`
+* Install Elastic Search (see the docker installation instructions above):
+  * Pull ElasticSearch `6.8.13` : `docker pull docker.elastic.co/elasticsearch/elasticsearch:6.8.13`
   * Running Elasticsearch from the command line:
   ```
-  docker run -p 9200:9200 -e "http.host=0.0.0.0" -e "transport.host=127.0.0.1" docker.elastic.co/elasticsearch/elasticsearch:5.1.2
+  docker run -p 9200:9200 -e "http.host=0.0.0.0" -e "transport.host=127.0.0.1" docker.elastic.co/elasticsearch/elasticsearch:6.8.13
   ```
 * Install PostgreSQL: `apt-get install postgresql postgresql-server-dev-all`
   * Help to setup database <https://wiki.debian.org/PostgreSql>
 * Install memcached: `apt-get install memcached`
   * Show all memcached options: `memcached -h`
+* Install Google-Chrome:
+  * Download latest stable: `wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb`
+  * Install chrome: sudo dpkg -i google-chrome-stable_current_amd64.deb
 
 #### Getting the code
 
@@ -117,12 +122,10 @@ Follow the instructions below on how to install Bundler and setup the database.
 * Start memcached: `memcached`
 * Run the tests: `bundle exec rake`
 
-#### Confirmation emails
+#### Confirmation emails links
 
-* Start rails: `rails s`
-* Sign up for a new user: http://localhost:3000/sign_up
-* Account confirmation email: http://localhost:3000/rails/mailers/mailer/email_confirmation
-  A list of all email previews is available at http://localhost:3000/rails/mailers.
+* [Account confirmation email](http://localhost:3000/rails/mailers/mailer/email_confirmation)
+* [A list of all email previews](http://localhost:3000/rails/mailers)
 
 #### Running RuboCop
 
@@ -159,7 +162,11 @@ directory. The proper directory will be full of .gem files.
 #### Getting the data dumps
 * You can use rubygems.org data [dumps](https://rubygems.org/pages/data) to test
 application in development environment especially for performance related issues.
-* To load the main database dump into Postgres, use `psql` - e.g. `$ psql gemcutter_development < PostgreSQL.sql`.
+* To load the main database dump into Postgres, use `script/load-pg-dump`. e.g.
+
+    ``` bash
+    $ ./script/load-pg-dump -d rubygems_development
+    ```
 
 #### Pushing gems
 

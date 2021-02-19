@@ -44,7 +44,7 @@ class UpdateVersionsFileTest < ActiveSupport::TestCase
       end
 
       should "include platform release" do
-        expected_output = "rubyrubyruby 0.0.1-jruby,0.0.1 qw212r\n"
+        expected_output = "rubyrubyruby 0.0.1,0.0.1-jruby qw212r\n"
         assert_equal expected_output, @tmp_versions_file.readlines[2]
       end
     end
@@ -143,7 +143,7 @@ class UpdateVersionsFileTest < ActiveSupport::TestCase
     setup do
       3.times do |i|
         create(:rubygem, name: "rubygem#{i}").tap do |gem|
-          create(:version, rubygem: gem, number: '0.0.1', info_checksum: "13q4e#{i}")
+          create(:version, rubygem: gem, number: "0.0.1", info_checksum: "13q4e#{i}")
         end
       end
       Rake::Task["compact_index:update_versions_file"].invoke

@@ -1,13 +1,8 @@
-require 'test_helper'
+require "test_helper"
 
 class UserTest < ActiveSupport::TestCase
-  def assert_resetting_email_changes(attr_name)
-    assert_changed(@user, attr_name) do
-      @user.update(email: 'some@one.com')
-    end
-  end
-
   should have_many(:ownerships).dependent(:destroy)
+  should have_many(:unconfirmed_ownerships).dependent(:destroy)
   should have_many(:rubygems).through(:ownerships)
   should have_many(:subscribed_gems).through(:subscriptions)
   should have_many(:deletions)
@@ -54,15 +49,62 @@ class UserTest < ActiveSupport::TestCase
       end
     end
 
-    context 'email' do
+    context "email" do
       should "be less than 255 characters" do
-        user = build(:user, email: ("a" * 255) + "@example.com")
+        user = build(:user, email: format("%s@example.com", "a" * 255))
         refute user.valid?
-        assert_contains user.errors[:email], "is too long (maximum is 254 characters)"
+        assert_contains user.errors[:email], "is too long (maximum is 255 characters)"
+      end
+
+      should "be valid when it matches URI mail email regex" do
+        user = build(:user, email: "mail@example.com")
+        assert user.valid?
+      end
+
+      should "be invalid when it doesn't match URI mail email regex" do
+        user = build(:user, email: "random[a..z]mdhlwqui@163.com")
+        refute user.valid?
+        assert_contains user.errors[:email], "is invalid"
+      end
+
+      should "be invalid with toxic domains in email" do
+        Tempfile.create("toxic_domains_whole.txt") do |f|
+          f.write "thing.com"
+          f.rewind
+          Gemcutter::Application.config.stubs(:toxic_domains_filepath).returns(f.path)
+
+          user = build(:user, email: "mail@thing.com")
+          refute user.valid?
+          assert_contains user.errors[:email], "domain 'thing.com' has been blocked for spamming. Please use a valid personal email."
+        end
+      end
+
+      should "be invalid with regexp-like email address and toxic email check enabled" do
+        Tempfile.create("toxic_domains_whole.txt") do |f|
+          f.write "thing.com"
+          f.rewind
+          Gemcutter::Application.config.stubs(:toxic_domains_filepath).returns(f.path)
+
+          user = build(:user, email: "${10000263+9999729}")
+          refute user.valid?
+          assert_contains user.errors[:email], "is not a valid email"
+        end
+      end
+
+      should "be invalid with empty email and toxic check enabled" do
+        Tempfile.create("toxic_domains_whole.txt") do |f|
+          f.write "thing.com"
+          f.rewind
+          Gemcutter::Application.config.stubs(:toxic_domains_filepath).returns(f.path)
+
+          user = build(:user, email: "")
+          refute user.valid?
+          assert_contains user.errors[:email], "is not a valid email"
+        end
       end
     end
 
-    context 'twitter_username' do
+    context "twitter_username" do
       should validate_length_of(:twitter_username)
       should allow_value("user123_32").for(:twitter_username)
       should_not allow_value("@user").for(:twitter_username)
@@ -72,24 +114,30 @@ class UserTest < ActiveSupport::TestCase
       should_not allow_value("012345678901234567890").for(:twitter_username)
     end
 
-    context 'password' do
-      should 'be between 10 and 200 characters' do
-        user = build(:user, password: 'a' * 9)
+    context "password" do
+      should "be between 10 and 200 characters" do
+        user = build(:user, password: "%5a&12ed/")
         refute user.valid?
-        assert_contains user.errors[:password], 'is too short (minimum is 10 characters)'
+        assert_contains user.errors[:password], "is too short (minimum is 10 characters)"
 
-        user.password = 'a' * 201
+        user.password = "#{'a8b5d2d451' * 20}a"
         refute user.valid?
-        assert_contains user.errors[:password], 'is too long (maximum is 200 characters)'
+        assert_contains user.errors[:password], "is too long (maximum is 200 characters)"
 
-        user.password = 'secretpassword'
+        user.password = "633!cdf7b3426c9%f6dd1a0b62d4ce44c4f544e%"
         user.valid?
         assert_nil user.errors[:password].first
       end
 
-      should 'be invalid when an empty string' do
-        user = build(:user, password: '')
+      should "be invalid when an empty string" do
+        user = build(:user, password: "")
         refute user.valid?
+      end
+
+      should "be invalid when it's found in a data breach" do
+        user = build(:user, password: "1234567890")
+        refute user.valid?
+        assert_contains user.errors[:password], "has previously appeared in a data breach and should not be used"
       end
     end
   end
@@ -121,7 +169,7 @@ class UserTest < ActiveSupport::TestCase
 
     should "have email and handle on JSON" do
       json = JSON.parse(@user.to_json)
-      hash = { "id" => @user.id, "email" => @user.email, 'handle' => @user.handle }
+      hash = { "id" => @user.id, "email" => @user.email, "handle" => @user.handle }
       assert_equal hash, json
     end
 
@@ -134,7 +182,7 @@ class UserTest < ActiveSupport::TestCase
 
     should "have email and handle on YAML" do
       yaml = YAML.safe_load(@user.to_yaml)
-      hash = { 'id' => @user.id, 'email' => @user.email, 'handle' => @user.handle }
+      hash = { "id" => @user.id, "email" => @user.email, "handle" => @user.handle }
       assert_equal hash, yaml
     end
 
@@ -163,33 +211,17 @@ class UserTest < ActiveSupport::TestCase
       assert_nil @user.hide_email
     end
 
-    should "have a 32 character hexadecimal api key" do
-      assert @user.api_key =~ /^[a-f0-9]{32}$/
-    end
-
-    should "reset api key" do
-      assert_changed(@user, :api_key) do
-        @user.reset_api_key!
-      end
-    end
-
     should "only return rubygems" do
       my_rubygem = create(:rubygem)
       create(:ownership, user: @user, rubygem: my_rubygem)
       assert_equal [my_rubygem], @user.rubygems
     end
 
-    context "email change" do
-      should "reset confirmation token" do
-        assert_resetting_email_changes :confirmation_token
-      end
-
-      should "store unconfirm email" do
-        assert_resetting_email_changes :unconfirmed_email
-      end
-
-      should "reset token_expires_at" do
-        assert_resetting_email_changes :token_expires_at
+    context "unconfirmed_email update" do
+      should "set confirmation token and token_expires_at" do
+        assert_changed(@user, :confirmation_token, :token_expires_at) do
+          @user.update(unconfirmed_email: "some@one.com")
+        end
       end
     end
 
@@ -230,13 +262,13 @@ class UserTest < ActiveSupport::TestCase
       assert_equal 1, all_hooks.keys.size
     end
 
-    context '#valid_confirmation_token?' do
-      should 'return false when email confirmation token has expired' do
+    context "#valid_confirmation_token?" do
+      should "return false when email confirmation token has expired" do
         @user.update_attribute(:token_expires_at, 2.minutes.ago)
         refute @user.valid_confirmation_token?
       end
 
-      should 'reutrn true when email confirmation token has not expired' do
+      should "reutrn true when email confirmation token has not expired" do
         two_minutes_in_future = Time.zone.now + 2.minutes
         @user.update_attribute(:token_expires_at, two_minutes_in_future)
         assert @user.valid_confirmation_token?
@@ -244,13 +276,13 @@ class UserTest < ActiveSupport::TestCase
     end
 
     context "two factor authentication" do
-      should 'disable mfa by default' do
+      should "disable mfa by default" do
         refute @user.mfa_enabled?
       end
 
       context "when enabled" do
         setup do
-          @user.enable_mfa!(ROTP::Base32.random_base32, :ui_mfa_only)
+          @user.enable_mfa!(ROTP::Base32.random_base32, :ui_only)
         end
 
         should "be able to use a recovery code only once" do
@@ -265,7 +297,7 @@ class UserTest < ActiveSupport::TestCase
 
         should "return true for mfa status check" do
           assert @user.mfa_enabled?
-          refute @user.no_mfa?
+          refute @user.mfa_disabled?
         end
 
         should "return true for otp in last interval" do
@@ -277,6 +309,17 @@ class UserTest < ActiveSupport::TestCase
           next_otp = ROTP::TOTP.new(@user.mfa_seed).at(Time.current + 30)
           assert @user.otp_verified?(next_otp)
         end
+
+        should "can be blocked" do
+          assert_changed(@user, :email, :password, :api_key, :mfa_seed, :remember_token) do
+            @user.block!
+          end
+
+          assert @user.email.start_with?("security+locked-")
+          assert @user.email.end_with?("@rubygems.org")
+          assert @user.mfa_recovery_codes.empty?
+          assert @user.mfa_disabled?
+        end
       end
 
       context "when disabled" do
@@ -285,14 +328,28 @@ class UserTest < ActiveSupport::TestCase
         end
 
         should "return false for verifying OTP" do
-          refute @user.otp_verified?('')
+          refute @user.otp_verified?("")
         end
 
         should "return false for mfa status check" do
           refute @user.mfa_enabled?
-          assert @user.no_mfa?
+          assert @user.mfa_disabled?
         end
       end
+    end
+  end
+
+  context ".without_mfa" do
+    setup do
+      create(:user, handle: "has_mfa", mfa_level: "ui_and_api")
+      create(:user, handle: "no_mfa", mfa_level: "disabled")
+    end
+
+    should "return only users without mfa" do
+      users_without_mfa = User.without_mfa
+
+      assert_equal 1, users_without_mfa.size
+      assert_equal "no_mfa", users_without_mfa.first.handle
     end
   end
 
@@ -322,7 +379,7 @@ class UserTest < ActiveSupport::TestCase
     end
 
     should "not include gems with more than one owner" do
-      @rubygems.first.owners << create(:user)
+      create(:ownership, rubygem: @rubygems.first)
       assert_equal 2, @user.only_owner_gems.count
     end
   end
@@ -351,7 +408,7 @@ class UserTest < ActiveSupport::TestCase
 
     context "user is only owner of gem" do
       should "record deletion" do
-        assert_difference 'Deletion.count', 1 do
+        assert_difference "Deletion.count", 1 do
           @user.destroy
         end
       end
@@ -363,11 +420,11 @@ class UserTest < ActiveSupport::TestCase
 
     context "user has co-owner of gem" do
       setup do
-        @rubygem.ownerships.create(user: create(:user))
+        create(:ownership, rubygem: @rubygem, user: create(:user))
       end
 
       should "not record deletion" do
-        assert_no_difference 'Deletion.count' do
+        assert_no_difference "Deletion.count" do
           @user.destroy
         end
       end
@@ -409,6 +466,44 @@ class UserTest < ActiveSupport::TestCase
     should "return true when remember_token has not expired" do
       @user.update_attribute(:remember_token_expires_at, 1.second.from_now)
       assert @user.remember_me?
+    end
+  end
+
+  context ".find_by_slug" do
+    should "return nil if using a falsy value" do
+      refute User.find_by_slug(nil)
+    end
+
+    context "foundable" do
+      setup { @user = create(:user, handle: "findable") }
+
+      should "return an AR when founded by id" do
+        assert_equal User.find_by_slug(@user.id), @user
+      end
+
+      should "return an AR when founded by handle" do
+        assert_equal User.find_by_slug(@user.handle), @user
+      end
+    end
+
+    context "not founded" do
+      should "return nil when using id" do
+        refute User.find_by_slug(-9999)
+      end
+
+      should "return nil when not founded by handle" do
+        refute User.find_by_slug("notfoundable")
+      end
+    end
+  end
+
+  context "block when handle has uppercase" do
+    setup { @user = create(:user, handle: "MikeJudge") }
+
+    should "not raise ActiveRecord::RecordInvalid for email address already taken" do
+      assert_changed(@user, :email, :password, :api_key, :mfa_seed, :remember_token) do
+        @user.block!
+      end
     end
   end
 end

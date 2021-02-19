@@ -1,4 +1,4 @@
-require 'test_helper'
+require "test_helper"
 
 class VersionTest < ActiveSupport::TestCase
   should belong_to :rubygem
@@ -6,17 +6,19 @@ class VersionTest < ActiveSupport::TestCase
 
   context "#as_json" do
     setup do
-      @version = create(:version, summary: "some words")
+      @version = build(:version, summary: "some words", created_at: Time.now.in_time_zone)
     end
 
     should "only have relevant API fields" do
       json = @version.as_json
+
       fields = %w[number built_at summary description authors platform
                   ruby_version rubygems_version prerelease downloads_count licenses
                   requirements sha metadata created_at]
       assert_equal fields.map(&:to_s).sort, json.keys.sort
       assert_equal @version.authors, json["authors"]
       assert_equal @version.built_at, json["built_at"]
+      assert_equal @version.created_at, json["created_at"]
       assert_equal @version.description, json["description"]
       assert_equal @version.downloads_count, json["downloads_count"]
       assert_equal @version.metadata, json["metadata"]
@@ -28,13 +30,12 @@ class VersionTest < ActiveSupport::TestCase
       assert_equal @version.summary, json["summary"]
       assert_equal @version.licenses, json["licenses"]
       assert_equal @version.requirements, json["requirements"]
-      assert_equal @version.created_at, json["created_at"]
     end
   end
 
   context "#to_xml" do
     setup do
-      @version = create(:version)
+      @version = build(:version)
     end
 
     should "only have relevant API fields" do
@@ -70,9 +71,9 @@ class VersionTest < ActiveSupport::TestCase
     end
 
     should "return most recently created version for versions with multiple non-ruby platforms" do
-      create(:version, rubygem: @gem, number: '0.1', platform: 'linux')
-      @most_recent = create(:version, rubygem: @gem, number: '0.2', platform: 'universal-rubinius')
-      create(:version, rubygem: @gem, number: '0.1', platform: 'mswin32')
+      create(:version, rubygem: @gem, number: "0.1", platform: "linux")
+      @most_recent = create(:version, rubygem: @gem, number: "0.2", platform: "universal-rubinius")
+      create(:version, rubygem: @gem, number: "0.1", platform: "mswin32")
 
       assert_equal @most_recent, Version.most_recent
     end
@@ -84,11 +85,11 @@ class VersionTest < ActiveSupport::TestCase
       @gem_one = create(:rubygem)
       @gem_two = create(:rubygem)
       @gem_three = create(:rubygem)
-      @version_one_latest  = create(:version, rubygem: @gem_one, number: '0.2')
-      @version_one_earlier = create(:version, rubygem: @gem_one, number: '0.1')
-      @version_two_latest  = create(:version, rubygem: @gem_two, number: '1.0')
-      @version_two_earlier = create(:version, rubygem: @gem_two, number: '0.5')
-      @version_three = create(:version, rubygem: @gem_three, number: '1.7')
+      @version_one_latest = create(:version, rubygem: @gem_one, number: "0.2")
+      @version_one_earlier = create(:version, rubygem: @gem_one, number: "0.1")
+      @version_two_latest = create(:version, rubygem: @gem_two, number: "1.0")
+      @version_two_earlier = create(:version, rubygem: @gem_two, number: "0.5")
+      @version_three = create(:version, rubygem: @gem_three, number: "1.7")
 
       @version_one_latest.dependencies << create(:dependency,
         version: @version_one_latest,
@@ -121,8 +122,8 @@ class VersionTest < ActiveSupport::TestCase
       @fourth = create(:version, rubygem: @existing_gem, created_at: 4.days.ago)
 
       @another_gem = create(:rubygem)
-      @third  = create(:version, rubygem: @another_gem, created_at: 3.days.ago)
-      @first  = create(:version, rubygem: @another_gem, created_at: 1.minute.ago)
+      @third = create(:version, rubygem: @another_gem, created_at: 3.days.ago)
+      @first = create(:version, rubygem: @another_gem, created_at: 1.minute.ago)
       @yanked = create(:version, rubygem: @another_gem, created_at: 30.seconds.ago, indexed: false)
 
       @bad_gem = create(:rubygem)
@@ -163,9 +164,9 @@ class VersionTest < ActiveSupport::TestCase
     should "sort dependencies alphabetically" do
       @version = build(:version, rubygem: @rubygem, number: "1.0.0", platform: "ruby")
 
-      @first_dependency_by_alpha = create(:rubygem, name: 'acts_as_indexed')
-      @second_dependency_by_alpha = create(:rubygem, name: 'friendly_id')
-      @third_dependency_by_alpha = create(:rubygem, name: 'refinerycms')
+      @first_dependency_by_alpha = create(:rubygem, name: "acts_as_indexed")
+      @second_dependency_by_alpha = create(:rubygem, name: "friendly_id")
+      @third_dependency_by_alpha = create(:rubygem, name: "refinerycms")
 
       @version.dependencies << create(:dependency,
         version: @version,
@@ -186,7 +187,7 @@ class VersionTest < ActiveSupport::TestCase
   context "with a rubygems version" do
     setup do
       @required_rubygems_version = ">= 2.6.4"
-      @version = create(:version)
+      @version = build(:version)
     end
 
     should "have a rubygems version" do
@@ -194,11 +195,24 @@ class VersionTest < ActiveSupport::TestCase
       new_version = Version.find(@version.id)
       assert_equal new_version.required_rubygems_version, @required_rubygems_version
     end
+
+    should "limit the character length" do
+      @version.required_rubygems_version = format(">=%s", "0" * 2 * 1024 * 1024 * 100)
+      @version.validate
+      assert_equal @version.errors.messages[:required_rubygems_version], ["is too long (maximum is 255 characters)"]
+    end
   end
 
   context "without a rubygems version" do
     setup do
-      @version = create(:version)
+      @version = build(:version)
+    end
+
+    should "allow empty value" do
+      @version.required_rubygems_version = ""
+      @version.validate
+
+      assert_equal @version.errors.messages[:required_rubygems_version], []
     end
 
     should "not have a rubygems version" do
@@ -208,10 +222,63 @@ class VersionTest < ActiveSupport::TestCase
     end
   end
 
+  context "with authors" do
+    setup do
+      @version = build(:version)
+    end
+
+    should "validate maxiumum author field length" do
+      @version.authors = Array.new(6000) { "test author" }
+      @version.validate
+
+      assert_equal @version.errors.messages[:authors], ["is too long (maximum is 64000 characters)"]
+    end
+  end
+
+  context "with a description" do
+    setup do
+      @version = build(:version)
+    end
+
+    should "validate description length" do
+      @version.description = "test description" * 6000
+      @version.validate
+
+      assert_equal @version.errors.messages[:description], ["is too long (maximum is 64000 characters)"]
+    end
+
+    should "allow empty description" do
+      @version.description = ""
+      @version.validate
+
+      assert_equal @version.errors.messages[:description], []
+    end
+  end
+
+  context "with a summary" do
+    setup do
+      @version = build(:version)
+    end
+
+    should "validate summary length" do
+      @version.summary = "test description" * 6000
+      @version.validate
+
+      assert_equal @version.errors.messages[:summary], ["is too long (maximum is 64000 characters)"]
+    end
+
+    should "allow empty summary" do
+      @version.summary = ""
+      @version.validate
+
+      assert_equal @version.errors.messages[:summary], []
+    end
+  end
+
   context "with a ruby version" do
     setup do
       @required_ruby_version = ">= 1.9.3"
-      @version = create(:version)
+      @version = build(:version)
     end
     subject { @version }
 
@@ -225,7 +292,7 @@ class VersionTest < ActiveSupport::TestCase
 
   context "without a ruby version" do
     setup do
-      @version = create(:version)
+      @version = build(:version)
     end
     subject { @version }
 
@@ -237,9 +304,41 @@ class VersionTest < ActiveSupport::TestCase
     end
   end
 
+  context "with canonical number" do
+    setup { @rubygem = create(:rubygem, number: "1.0.0") }
+
+    should "be invalid with trailing zero in segments" do
+      version = build(:version, rubygem: @rubygem, number: "1.0.0.0")
+      refute version.valid?
+      assert_equal version.errors.messages[:canonical_number], ["has already been taken. Existing version: 1.0.0"]
+    end
+
+    should "be invalid with fewer zero in segments" do
+      version = build(:version, rubygem: @rubygem, number: "1.0")
+      refute version.valid?
+      assert_equal version.errors.messages[:canonical_number], ["has already been taken. Existing version: 1.0.0"]
+    end
+
+    should "be invalid with leading zero in significant segments" do
+      version = build(:version, rubygem: @rubygem, number: "01.0.0")
+      refute version.valid?
+      assert_equal version.errors.messages[:canonical_number], ["has already been taken. Existing version: 1.0.0"]
+    end
+
+    should "be valid in a different platform" do
+      version = build(:version, rubygem: @rubygem, number: "1.0.0", platform: "win32")
+      assert version.valid?
+    end
+
+    should "be valid with prerelease" do
+      version = build(:version, rubygem: @rubygem, number: "1.0.0.pre")
+      assert version.valid?
+    end
+  end
+
   context "with a version" do
     setup do
-      @version = create(:version)
+      @version = build(:version)
       @info = "some info"
     end
     subject { @version }
@@ -254,6 +353,24 @@ class VersionTest < ActiveSupport::TestCase
     should allow_value("x86_64-linux").for(:platform)
     should_not allow_value("Gem::Platform::Ruby").for(:platform)
 
+    should "be invalid with platform longer than maximum field length" do
+      @version.platform = "r" * (Gemcutter::MAX_FIELD_LENGTH + 1)
+      refute @version.valid?
+      assert_equal @version.errors.messages[:platform], ["is too long (maximum is 255 characters)"]
+    end
+
+    should "be invalid with number longer than maximum field length" do
+      long_number_suffix = ".1" * (Gemcutter::MAX_FIELD_LENGTH + 1)
+      @version.number = "1#{long_number_suffix}"
+      refute @version.valid?
+      assert_equal @version.errors.messages[:number], ["is too long (maximum is 255 characters)"]
+    end
+    should "be invalid with licenses longer than maximum field length" do
+      @version.licenses = "r" * (Gemcutter::MAX_FIELD_LENGTH + 1)
+      refute @version.valid?
+      assert_equal @version.errors.messages[:licenses], ["is too long (maximum is 255 characters)"]
+    end
+
     should "give number for #to_s" do
       assert_equal @version.number, @version.to_s
     end
@@ -263,6 +380,7 @@ class VersionTest < ActiveSupport::TestCase
     end
 
     should "save full name" do
+      @version.save!
       assert_equal "#{@version.rubygem.name}-#{@version.number}", @version.full_name
       assert_equal @version.number, @version.slug
     end
@@ -303,6 +421,7 @@ class VersionTest < ActiveSupport::TestCase
         number: "0.4.0.pre")
 
       assert @version.prerelease
+      assert @version.read_attribute(:prerelease) # This checks to see if the callback worked
       assert new_version.prerelease
 
       @version.rubygem.reorder_versions
@@ -335,7 +454,7 @@ class VersionTest < ActiveSupport::TestCase
 
     context "#to_bundler" do
       should "give feature release version and bugfix up to current version for patched versions" do
-        patched_version = create(:version, number: "1.0.3")
+        patched_version = build(:version, number: "1.0.3")
         name = patched_version.rubygem.name
         actual = patched_version.to_bundler
         expected = %(gem '#{name}', '~> 1.0', '>= 1.0.3')
@@ -344,7 +463,7 @@ class VersionTest < ActiveSupport::TestCase
       end
 
       should "give only feature release version if no bug fix" do
-        no_bugfix = create(:version, number: "1.0")
+        no_bugfix = build(:version, number: "1.0")
         name = no_bugfix.rubygem.name
         actual = no_bugfix.to_bundler
         expected = %(gem '#{name}', '~> 1.0')
@@ -353,7 +472,7 @@ class VersionTest < ActiveSupport::TestCase
       end
 
       should "give only feature release version if long version specified with no bugfix" do
-        long_version = create(:version, number: "1.0.0.0")
+        long_version = build(:version, number: "1.0.0.0")
         name = long_version.rubygem.name
         actual = long_version.to_bundler
         expected = %(gem '#{name}', '~> 1.0')
@@ -362,7 +481,7 @@ class VersionTest < ActiveSupport::TestCase
       end
 
       should "give feature release version up to current version if long version specified with bugfix" do
-        long_version = create(:version, number: "1.0.3.0")
+        long_version = build(:version, number: "1.0.3.0")
         name = long_version.rubygem.name
         actual = long_version.to_bundler
         expected = %(gem '#{name}', '~> 1.0', '>= 1.0.3.0')
@@ -371,7 +490,7 @@ class VersionTest < ActiveSupport::TestCase
       end
 
       should "give bugfix version if < 1.0.0" do
-        early_version = create(:version, number: "0.1.2")
+        early_version = build(:version, number: "0.1.2")
         name = early_version.rubygem.name
         actual = early_version.to_bundler
         expected = %(gem '#{name}', '~> 0.1.2')
@@ -419,7 +538,7 @@ class VersionTest < ActiveSupport::TestCase
 
     should "give 'N/A' for size when size not available" do
       @version.size = nil
-      assert_equal 'N/A', @version.size
+      assert_equal "N/A", @version.size
     end
   end
 
@@ -453,11 +572,11 @@ class VersionTest < ActiveSupport::TestCase
 
   context "when indexing" do
     setup do
-      @rubygem = create(:rubygem)
-      @first_version  = create(:version, rubygem: @rubygem, number: "0.0.1", built_at: 7.days.ago)
-      @second_version = create(:version, rubygem: @rubygem, number: "0.0.2", built_at: 6.days.ago)
-      @third_version  = create(:version, rubygem: @rubygem, number: "0.0.3", built_at: 5.days.ago)
-      @fourth_version = create(:version, rubygem: @rubygem, number: "0.0.4", built_at: 5.days.ago)
+      @rubygem = build(:rubygem)
+      @first_version = build(:version, rubygem: @rubygem, number: "0.0.1", built_at: 7.days.ago)
+      @second_version = build(:version, rubygem: @rubygem, number: "0.0.2", built_at: 6.days.ago)
+      @third_version  = build(:version, rubygem: @rubygem, number: "0.0.3", built_at: 5.days.ago)
+      @fourth_version = build(:version, rubygem: @rubygem, number: "0.0.4", built_at: 5.days.ago)
     end
 
     should "always sort properly" do
@@ -481,8 +600,8 @@ class VersionTest < ActiveSupport::TestCase
 
   context "with mixed release and prerelease versions" do
     setup do
-      @prerelease = create(:version, number: '1.0.rc1')
-      @release    = create(:version, number: '1.0')
+      @prerelease = build(:version, number: "1.0.rc1")
+      @release    = build(:version, number: "1.0")
     end
 
     should "know if it is a prelease version" do
@@ -491,6 +610,7 @@ class VersionTest < ActiveSupport::TestCase
     end
 
     should "return prerelease gems from the prerelease named scope" do
+      [@prerelease, @release].each(&:save!)
       assert_equal [@prerelease], Version.prerelease
       assert_equal [@release],    Version.release
     end
@@ -499,9 +619,9 @@ class VersionTest < ActiveSupport::TestCase
   context "with only prerelease versions" do
     setup do
       @rubygem = create(:rubygem)
-      @one = create(:version, rubygem: @rubygem, number: '1.0.0.pre')
-      @two = create(:version, rubygem: @rubygem, number: '1.0.1.pre')
-      @three = create(:version, rubygem: @rubygem, number: '1.0.2.pre')
+      @one = create(:version, rubygem: @rubygem, number: "1.0.0.pre")
+      @two = create(:version, rubygem: @rubygem, number: "1.0.1.pre")
+      @three = create(:version, rubygem: @rubygem, number: "1.0.2.pre")
       @rubygem.reload
     end
 
@@ -513,10 +633,10 @@ class VersionTest < ActiveSupport::TestCase
   context "with versions created out of order" do
     setup do
       @gem = create(:rubygem)
-      create(:version, rubygem: @gem, number: '0.5')
-      create(:version, rubygem: @gem, number: '0.3')
-      create(:version, rubygem: @gem, number: '0.7')
-      create(:version, rubygem: @gem, number: '0.2')
+      create(:version, rubygem: @gem, number: "0.5")
+      create(:version, rubygem: @gem, number: "0.3")
+      @version_one_latest = create(:version, rubygem: @gem, number: "0.7")
+      @version_one_earlier = create(:version, rubygem: @gem, number: "0.2")
       @gem.reload # make sure to reload the versions just created
     end
 
@@ -525,26 +645,23 @@ class VersionTest < ActiveSupport::TestCase
     end
 
     should "know its latest version" do
-      assert_equal '0.7', @gem.versions.most_recent.number
-    end
-  end
-
-  context "with multiple rubygems and versions created out of order" do
-    setup do
-      @gem_one = create(:rubygem)
-      @gem_two = create(:rubygem)
-      @version_one_latest  = create(:version, rubygem: @gem_one, number: '0.2')
-      @version_one_earlier = create(:version, rubygem: @gem_one, number: '0.1')
-      @version_two_latest  = create(:version, rubygem: @gem_two, number: '1.0')
-      @version_two_earlier = create(:version, rubygem: @gem_two, number: '0.5')
+      assert_equal "0.7", @gem.versions.most_recent.number
     end
 
-    should "be able to fetch the latest versions" do
-      assert_contains Version.latest.map(&:id), @version_one_latest.id
-      assert_contains Version.latest.map(&:id), @version_two_latest.id
+    context "with multiple rubygems and versions created out of order" do
+      setup do
+        @gem_two = create(:rubygem)
+        @version_two_latest = create(:version, rubygem: @gem_two, number: "1.0")
+        @version_two_earlier = create(:version, rubygem: @gem_two, number: "0.5")
+      end
 
-      assert_does_not_contain Version.latest.map(&:id), @version_one_earlier.id
-      assert_does_not_contain Version.latest.map(&:id), @version_two_earlier.id
+      should "be able to fetch the latest versions" do
+        assert_contains Version.latest.map(&:id), @version_one_latest.id
+        assert_contains Version.latest.map(&:id), @version_two_latest.id
+
+        assert_does_not_contain Version.latest.map(&:id), @version_one_earlier.id
+        assert_does_not_contain Version.latest.map(&:id), @version_two_earlier.id
+      end
     end
   end
 
@@ -653,8 +770,9 @@ class VersionTest < ActiveSupport::TestCase
     should "have attributes set properly from the specification" do
       @version.update_attributes_from_gem_specification!(@spec)
 
+      assert @version.rubygem.indexed
       assert @version.indexed
-      assert_equal @spec.authors.join(', '),              @version.authors
+      assert_equal @spec.authors.join(", "),              @version.authors
       assert_equal @spec.description,                     @version.description
       assert_equal @spec.summary,                         @version.summary
       assert_equal @spec.date,                            @version.built_at
@@ -663,26 +781,43 @@ class VersionTest < ActiveSupport::TestCase
       assert_equal @spec.required_rubygems_version.to_s,  @version.required_rubygems_version
     end
 
-    context "metadata" do
+    context "with metadata" do
       should "be invalid with empty string as link" do
-        assert_raise ActiveRecord::RecordInvalid do
-          @spec.metadata = { "home" => "" }
-          @version.update_attributes_from_gem_specification!(@spec)
-        end
+        @version.metadata = { "home" => "" }
+        @version.validate
+        assert_equal @version.errors.messages[:metadata], ["['home'] does not appear to be a valid URL"]
       end
 
       should "be invalid with invalid link" do
-        assert_raise ActiveRecord::RecordInvalid do
-          @spec.metadata = { "home" => "http:/github.com/bestgemever" }
-          @version.update_attributes_from_gem_specification!(@spec)
-        end
+        @version.metadata = { "home" => "http:/github.com/bestgemever" }
+        @version.validate
+        assert_equal @version.errors.messages[:metadata], ["['home'] does not appear to be a valid URL"]
       end
 
       should "be valid with valid link" do
-        assert_nothing_raised do
-          @spec.metadata = { "home" => "http://github.com/bestgemever" }
-          @version.update_attributes_from_gem_specification!(@spec)
-        end
+        @version.metadata = { "home" => "http://github.com/bestgemever" }
+        assert @version.validate
+        assert_equal @version.errors.messages[:metadata], []
+      end
+
+      should "be invalid with value larger than 1024 bytes" do
+        large_value = "v" * 1025
+        @version.metadata = { "key" => large_value }
+        @version.validate
+        assert_equal @version.errors.messages[:metadata], ["metadata value ['#{large_value}'] is too large (maximum is 1024 bytes)"]
+      end
+
+      should "be invalid with key larger than 251 bytes" do
+        large_key = "h" * 129
+        @version.metadata = { large_key => "value" }
+        @version.validate
+        assert_equal @version.errors.messages[:metadata], ["metadata key ['#{large_key}'] is too large (maximum is 128 bytes)"]
+      end
+
+      should "be invalid with empty key" do
+        @version.metadata = { "" => "value" }
+        @version.validate
+        assert_equal @version.errors.messages[:metadata], ["metadata key is empty"]
       end
     end
   end
@@ -734,8 +869,8 @@ class VersionTest < ActiveSupport::TestCase
   end
 
   should "validate authors the same twice" do
-    g = Rubygem.new(name: 'test-gem')
-    v = Version.new(authors:  %w[arthurnn dwradcliffe], number: 1, platform: 'ruby', rubygem: g)
+    g = Rubygem.new(name: "test-gem")
+    v = Version.new(authors:  %w[arthurnn dwradcliffe], number: 1, platform: "ruby", rubygem: g)
     assert_equal "arthurnn, dwradcliffe", v.authors
     assert v.valid?
     assert_equal "arthurnn, dwradcliffe", v.authors
@@ -743,58 +878,75 @@ class VersionTest < ActiveSupport::TestCase
   end
 
   should "not allow full name collision" do
-    g1 = Rubygem.create(name: 'test-gem-733.t')
-    Version.create(authors:  %w[arthurnn dwradcliffe], number: '0.0.1', platform: 'ruby', rubygem: g1)
-    g2 = Rubygem.create(name: 'test-gem')
-    v2 = Version.new(authors:  %w[arthurnn dwradcliffe], number: '733.t-0.0.1', platform: 'ruby', rubygem: g2)
+    g1 = Rubygem.create(name: "test-gem-733.t")
+    Version.create(authors:  %w[arthurnn dwradcliffe], number: "0.0.1", platform: "ruby", rubygem: g1)
+    g2 = Rubygem.create(name: "test-gem")
+    v2 = Version.new(authors:  %w[arthurnn dwradcliffe], number: "733.t-0.0.1", platform: "ruby", rubygem: g2)
     refute v2.valid?
-    assert_equal [:full_name], v2.errors.keys
+    assert_equal [:full_name], v2.errors.attribute_names
   end
 
   context "checksums" do
     setup do
-      @version = create(:version)
-    end
-
-    should "be available from the database" do
-      assert_equal "tdQEXD9Gb6kf4sxqvnkjKhpXzfEE96JucW4KHieJ33g=",
-        @version.reload.sha256
+      @version = build(:version)
     end
 
     should "convert to hex on sha256_hex" do
       assert_equal "b5d4045c3f466fa91fe2cc6abe79232a1a57cdf104f7a26e716e0a1e2789df78",
-        @version.reload.sha256_hex
+        @version.sha256_hex
     end
 
     should "should return nil on sha256_hex when sha not avaible" do
-      version = create(:version, sha256: nil)
-      assert_nil version.sha256_hex
+      @version.sha256 = nil
+      assert_nil @version.sha256_hex
     end
   end
 
   context "created_between" do
     setup do
-      @version = create(:version)
-      @start_time = Time.zone.parse('2017-10-10')
-      @end_time = Time.zone.parse('2017-11-10')
+      @version = build(:version)
+      @start_time = Time.zone.parse("2017-10-10")
+      @end_time = Time.zone.parse("2017-11-10")
     end
 
     should "return versions created in the given range" do
-      @version.created_at = Time.zone.parse('2017-10-20')
+      @version.created_at = Time.zone.parse("2017-10-20")
       @version.save!
       assert_contains Version.created_between(@start_time, @end_time), @version
     end
 
     should "NOT return versions created before the range begins" do
-      @version.created_at = Time.zone.parse('2017-10-09')
+      @version.created_at = Time.zone.parse("2017-10-09")
       @version.save!
       assert_does_not_contain Version.created_between(@start_time, @end_time), @version
     end
 
     should "NOT return versions after the range begins" do
-      @version.created_at = Time.zone.parse('2017-11-11')
+      @version.created_at = Time.zone.parse("2017-11-11")
       @version.save!
       assert_does_not_contain Version.created_between(@start_time, @end_time), @version
+    end
+  end
+
+  context "after_save" do
+    context "reorder versions" do
+      setup do
+        @version = create(:version)
+      end
+
+      context "indexed is updated" do
+        should "reorder versions" do
+          @version.expects(:reorder_versions).times(1)
+          @version.update(indexed: false)
+        end
+      end
+
+      context "info checksum is updated" do
+        should "not reorder versions" do
+          @version.expects(:reorder_versions).times(0)
+          @version.update(info_checksum: "lala")
+        end
+      end
     end
   end
 end

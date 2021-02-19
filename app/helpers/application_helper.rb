@@ -5,8 +5,8 @@ module ApplicationHelper
   end
 
   def atom_feed_link(title, url)
-    tag 'link', rel: 'alternate',
-                type: 'application/atom+xml',
+    tag "link", rel: "alternate",
+                type: "application/atom+xml",
                 href: url,
                 title: title
   end
@@ -56,5 +56,14 @@ module ApplicationHelper
   # only shows `next` and `prev` links and not page numbers, saving a COUNT(DISTINCT ..) query
   def plain_paginate(items)
     render "layouts/plain_paginate", items: items
+  end
+
+  def content_for_title(title, title_url)
+    return title unless title_url
+    link_to title, title_url, class: "t-link--black"
+  end
+
+  def i18n_api_scopes(api_key)
+    api_key.enabled_scopes.map { |scope| content_tag(:ul, t(".#{scope}"), class: "scopes__list") }.reduce(&:+)
   end
 end

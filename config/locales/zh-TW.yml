@@ -1,36 +1,42 @@
 zh-TW:
   edit: 編輯
-  failure_when_forbidden:
+  failure_when_forbidden: 請確認 URL 或再次提交
   feed_latest: RubyGems.org | 最新 Gems
   feed_subscribed: RubyGems.org | 訂閱 Gems
-  footer_about: RubyGems.org 是 Ruby 社群的 Gem 套件管理服務，讓你能立即地發佈及安裝你的 Gem 套件，並且利用 API 查詢及操作可用 Gem 的詳細資訊。<br />現在就成為貢獻者，貢獻一己之力來改善本站。
+  footer_about_html: RubyGems.org 是 Ruby 社群的 Gem 套件管理服務，讓你能立即地發佈及安裝你的 Gem 套件，並且利用 API 查詢及操作可用 Gem 的詳細資訊。<br />現在就成為貢獻者，貢獻一己之力來改善本站。
+  footer_sponsors_html:
+  footer_join_rt_html:
   form_disable_with: 請稍候...
-  help_url: http://help.rubygems.org
+  invalid_page:
   locale_name: 正體中文
-  none:
-  not_found:
+  none: 無
+  not_found: 沒有找到
+  api_key_forbidden:
   please_sign_up: 無法存取，請先在 https://rubygems.org 上註冊帳號
+  please_sign_in:
   otp_incorrect:
   otp_missing:
   sign_in: 登入
   sign_up: 註冊
-  multifactor_authentication:
+  dependency_list:
+  multifactor_authentication: MFA 驗證
   subtitle: Ruby 社群 Gem 套件管理平台
-  this_rubygem_could_not_be_found:
+  this_rubygem_could_not_be_found: 找不到這個 gem
   time_ago: "%{duration} 前"
   title: RubyGems.org
   update: 更新
-  try_again:
-  advanced_search:
+  try_again: 請再試一次
+  advanced_search: 進階搜尋
   activerecord:
     attributes:
       linkset:
         bugs: Bug 追蹤 URL
-        changelog:
+        changelog: 更新日誌
         code: 原始碼 URL
         docs: 文件 URL
         mail: 郵件群組 URL
         wiki: Wiki URL
+        funding:
       session:
         password: 密碼
         who: Email / 帳號
@@ -39,6 +45,47 @@ zh-TW:
         email: Email
         handle: 帳號
         password: 密碼
+    errors:
+      messages:
+        unpwn:
+        blocked:
+  api_keys:
+    create:
+      success:
+    destroy:
+      success:
+    index:
+      api_keys:
+      name:
+      scopes:
+      age:
+      last_access:
+      action:
+      delete:
+      confirm:
+      confirm_all:
+      new_key:
+      index_rubygems:
+      push_rubygem:
+      yank_rubygem:
+      add_owner:
+      remove_owner:
+      access_webhooks:
+      show_dashboard:
+      reset:
+      save_key:
+    new:
+      new_api_key:
+    reset:
+      success:
+    update:
+      success:
+    edit:
+      edit_api_key:
+  clearance_mailer:
+    change_password:
+      title:
+      subtitle:
   dashboards:
     show:
       creating_link_text: Gem 建立
@@ -48,20 +95,21 @@ zh-TW:
       migrating_link_text: Gem 轉移
       mine: 我的 Gems
       my_subscriptions: 我的訂閱
-      no_owned: 你尚未發佈任何 Gem。可以閱讀 %{creating_link} 教學，或參考 %{migrating_link} 教學來將你的 Gem 從 RubyForge 遷移過來。
-      no_subscriptions: 你還沒有訂閱過 Gem，前往 %{gem_link} 來訂閱！
+      no_owned_html: 你尚未發佈任何 Gem。可以閱讀 %{creating_link} 教學，或參考 %{migrating_link} 教學來將你的 Gem 從 RubyForge 遷移過來。
+      no_subscriptions_html: 你還沒有訂閱過 Gem，前往 %{gem_link} 來訂閱！
+      title: 控制台
   email_confirmations:
     create:
       promise_resend:
     new:
-      submit:
-      title:
-      will_email_notice:
+      submit: 重新發送
+      title: 重新發送確認信
+      will_email_notice: 我們將會通過 Email 發送帳號認證信連結給你。
     update:
-      confirmed_email:
+      confirmed_email: Email 驗證成功。
   home:
     index:
-      downloads_counting: 總下載次數
+      downloads_counting_html: 總下載次數
       find_blurb: 搜尋、安裝以及發佈 RubyGems
       learn:
         install_rubygems: 安裝 RubyGems
@@ -82,53 +130,112 @@ zh-TW:
         monitored_by: 監控
         optimized_by: 優化
         resolved_with: 解析
-        security:
+        security: 安全
         source_code: 原始碼
         statistics: 統計
         status: 狀態
         supported_by: 支持
-        tested_by:
+        tested_by: 測試
         tracking_by: 追蹤
         uptime: 上線時間
       header:
         dashboard: 控制台
-        search_gem:
+        edit_profile:
+        settings:
+        search_gem_html: 搜尋 Gems&hellip;
         sign_in: 登入
         sign_out: 登出
         sign_up: 註冊
   mailer:
     confirm_your_email:
     confirmation_subject:
+    link_expiration_explanation_html:
     email_confirmation:
+      title:
+      subtitle:
       confirmation_link:
       welcome_message:
     email_reset:
+      title:
+      subtitle:
       visit_link_instructions:
-      link_expiration_explanation:
     deletion_complete:
+      title:
+      subtitle:
       subject:
-      body:
+      body_html:
     deletion_failed:
+      title:
+      subtitle:
       subject:
-      body:
+      body_html:
+    notifiers_changed:
+      subject:
+      title:
+      subtitle:
+      'on':
+      off_html:
+    gem_pushed:
+      subject:
+      title:
+    gem_yanked:
+      subject:
+      title:
+    reset_api_key:
+      subject:
+      title:
+      subtitle:
+    email_reset_update:
+      subject:
+      title:
+    ownership_confirmation:
+      subject:
+      title:
+      subtitle:
+      body_html:
+      link_expiration_explanation_html:
+    owner_added:
+      subject_self:
+      subject_others:
+      title:
+      subtitle:
+      body_self_html:
+      body_others_html:
+    owner_removed:
+      subject:
+      title:
+      subtitle:
+      body_html:
   news:
     show:
-      title:
-      all_gems:
-      popular_gems:
+      title: 最新發佈
+      all_gems: 全部
+      popular_gems: 熱門
     popular:
-      title:
+      title: 熱門新發佈
   pages:
     about:
-      founding: 本專案由 %{founder} 於 2009 年 4 月創立，發展過程中有超過 %{contributors} 貢獻者以及 %{downloads}。自 RubyGems 1.3.6 發佈以來，本站名稱由 Gemcutter 更名為 %{title}，本站自此之後成為 Ruby 社群的核心網站。
-      support: 雖然 Gemcutter 並不是由一個特定的公司運作，但在發展過程中接受了許多來源的幫助。目前的設計、圖像以及網站的前端開發是由 %{dockyard} 提供。%{github} 也幫助我們能更容易地協作和分享原始碼。本站部署在 %{heroku} 上，其一流的服務，更有助於證明 Gemcutter 是一個可以穩定、可行的解決方案。Our infrastructure is currently hosted on %{aws}.
-      technical: 關於本站的技術資訊：100% Ruby。主站是一個 %{rails} 應用程式。Gems 架設在 %{s3} 上, served by %{fastly}, 使得 Gem 從發佈到提供下載的時間大幅縮短。詳細資訊可從 GitHub 上的 %{source_code} 查看（遵守 %{license} 協議）。
+      founding_html: 本專案由 %{founder} 於 2009 年 4 月創立，發展過程中有超過 %{contributors} 貢獻者以及 %{downloads}。自 RubyGems 1.3.6 發佈以來，本站名稱由 Gemcutter 更名為 %{title}，本站自此之後成為 Ruby 社群的核心網站。
+      support_html: 雖然 Gemcutter 並不是由一個特定的公司運作，但在發展過程中接受了許多來源的幫助。目前的設計、圖像以及網站的前端開發是由 %{dockyard} 提供。%{github} 也幫助我們能更容易地協作和分享原始碼。本站部署在 %{heroku} 上，其一流的服務，更有助於證明 Gemcutter 是一個可以穩定、可行的解決方案。Our infrastructure is currently hosted on %{aws}.
+      technical_html: 關於本站的技術資訊：100% Ruby。主站是一個 %{rails} 應用程式。Gems 架設在 %{s3} 上, served by %{fastly}, 使得 Gem 從發佈到提供下載的時間大幅縮短。詳細資訊可從 GitHub 上的 %{source_code} 查看（遵守 %{license} 協議）。
       title: 關於
       purpose:
         better_api: 提供更好的 Gem API
         enable_community: 讓社群能透過眾人的力量來改善本站
         header: 歡迎來到 %{site}，這裡是 Ruby 社群 Gem 套件管理服務。此專案的建立有以下三個目的：
         transparent_pages: 建立更透明、更易於瀏覽的 Gem 專案頁面
+    data:
+      title:
+    download:
+      title:
+    faq:
+      title:
+    migrate:
+      title:
+    security:
+      title:
+    sponsors:
+      title:
   passwords:
     edit:
       submit: 更新密碼
@@ -137,6 +244,8 @@ zh-TW:
       submit: 更新密碼
       title: 修改密碼
       will_email_notice: 系統將會寄一封包含重設密碼連結的電子郵件給你
+    otp_prompt:
+      authenticate:
   multifactor_auths:
     incorrect_otp:
     otp_code:
@@ -162,28 +271,55 @@ zh-TW:
       success:
     update:
       success:
-  profiles:
+  notifiers:
+    update:
+      success:
+    show:
+      info:
+      'on':
+      'off':
+      recommended:
+      title:
+      update:
+      push_heading:
+      owner_heading:
+  owners:
+    confirm:
+      confirmed_email:
+      token_expired:
+    index:
+      add_owner:
+      name:
+      mfa:
+      status:
+      confirmed_at:
+      added_by:
+      action:
+      info:
+      email_field:
+      submit_button:
+      confirmed:
+      pending:
+      confirm_remove:
+    resend_confirmation:
+      resent_notice:
+    create:
+      success_notice:
+    destroy:
+      removed_notice:
+      failed_notice:
+  settings:
     edit:
-      email_awaiting_confirmation:
-      enter_password:
-      hide_email: 在公開的個人頁面中隱藏 email
-      optional_twitter_username:
-      title: 編輯個人檔案
+      title:
       api_access:
         confirm_reset: 確定要重設嗎？此動作無法還原
-        credentials: 如果你需要從 command line 中執行 %{gem_commands_link}，你需要先準備 %{gem_credentials_file} 這個檔案，用以下的指令可以產生：
-        key_is: 你的 API key 是 %{key}。
+        credentials_html: 如果你需要從 command line 中執行 %{gem_commands_link}，你需要先準備 %{gem_credentials_file} 這個檔案，用以下的指令可以產生：
+        key_is_html: 你的 API key 是 %{key}。
         link_text: Gem 指令
         reset: 重設 API key
         title: API 存取
       reset_password:
-        link_text: 從這裡設定新密碼
-        text: 需要重設密碼？沒問題。 %{link}
         title: 重設密碼
-      delete:
-        delete:
-        delete_profile:
-        warning:
       mfa:
         multifactor_auth:
         disabled:
@@ -192,15 +328,29 @@ zh-TW:
         update:
         level:
           title:
-          no_mfa:
-          ui_mfa_only:
-          ui_and_api_mfa:
+          disabled:
+          ui_only:
+          ui_and_api:
+          ui_and_gem_signin:
+  profiles:
+    edit:
+      change_avatar:
+      email_awaiting_confirmation: 請驗證你的新 Email %{unconfirmed_email}
+      enter_password: 輸入密碼
+      hide_email: 在公開的個人頁面中隱藏 email
+      optional_twitter_username: Twitter 帳號（可選）
+      title: 編輯個人檔案
+      delete:
+        delete: 刪除
+        delete_profile: 刪除個人資料
+        warning: 警告
     delete:
       title:
       confirm:
       instructions:
-      list_only_owner:
+      list_only_owner_html:
       list_multi_owner:
+      warning: 警告
     rubygem:
       owners_header:
     destroy:
@@ -212,16 +362,16 @@ zh-TW:
   rubygems:
     aside:
       bundler_header: Gemfile
-      copied:
-      copy_to_clipboard:
+      copied: 已複製
+      copy_to_clipboard: 複製
       downloads_for_this_version: 這個版本
       install: 安裝
-      required_ruby_version:
-      required_rubygems_version:
+      required_ruby_version: Ruby 版本需求
+      required_rubygems_version: RubyGems 版本需求
       links:
         badge: 徽章
         bugs: Bug 追蹤
-        changelog:
+        changelog: 更新日誌
         code: 原始碼
         docs: 文件
         download: 下載
@@ -229,70 +379,82 @@ zh-TW:
         home: 首頁
         mail: 郵件群組
         report_abuse: 舉報投訴
-        reverse_dependencies:
+        reverse_dependencies: 反向依賴
+        review_changes:
         rss: RSS
         subscribe: 訂閱
         unsubscribe: 取消訂閱
         wiki: Wiki
+        ownership:
+        resend_ownership_confirmation:
     blacklisted:
       blacklisted_namespace:
     dependencies:
       header: "%{title} 相依性套件"
-    edit:
-      other_fields_notice: 其他設定欄位只能透過發佈一個新版本的 Gem 來修改
-      subtitle: "%{gem}"
-      title: 編輯連結
-      deprecation_message:
     gem_members:
       authors_header: 作者
+      not_using_mfa_warning_show:
+      not_using_mfa_warning_hide:
       owners_header: 擁有者
+      pushed_by:
+      using_mfa_info:
+      yanked_by:
       sha_256_checksum: SHA 256 checksum
     index:
-      downloads:
-      title:
+      downloads: 下載
+      title: Gems
     show:
       licenses_header:
-      no_licenses:
+        one: License
+        other: License
+      no_licenses: 無
       requirements_header: 必填
       show_all_versions: 顯示所有版本（共 %{count}）
       versions_header: 版本列表
       yanked_notice: 這個 Gem 版本已被移除，因此無法提供下載，也無法被其他的 Gem 相依。
     show_yanked:
       not_hosted_notice: 這個 Gem 目前沒有在 Gemcutter 上
-      reserved_namespace:
+      reserved_namespace_html:
         one:
         other:
   reverse_dependencies:
     index:
       title:
+      subtitle:
     search:
-      search_reverse_dependencies:
+      search_reverse_dependencies_html:
   searches:
     advanced:
-      name:
-      summary:
-      description:
-      downloads:
-      updated:
+      name: 名稱
+      summary: 摘要
+      description: 描述
+      downloads: 下載數
+      updated: 最後更新時間
     show:
-      exact_match: 完全符合
       subtitle: "%{query}"
       month_update:
       week_update:
       filter:
+      yanked:
+      suggestion:
   sessions:
     new:
       forgot_password: 忘記密碼？
-      resend_confirmation:
+      resend_confirmation: 沒收到確認信？
+    verify:
+      title:
+      confirm:
+      notice:
   stats:
     index:
-      all_time_most_downloaded:
+      title:
+      all_time_most_downloaded: 歷史下載次數排行
       total_downloads: 總下載次數
-      total_gems:
-      total_users:
+      total_gems: Gems 總數
+      total_users: 總使用者數量
   users:
     create:
-      email_sent:
+      email_sent: 已發送確認信到你的信箱地址。
     new:
       have_account: 已經註冊過了？
   versions:
@@ -303,17 +465,17 @@ zh-TW:
     version:
       yanked: 已被移除
   will_paginate:
-    next_label:
+    next_label: 下一頁
     page_gap: "…"
-    previous_label:
+    previous_label: 上一頁
     page_entries_info:
-      multi_page:
-      multi_page_html:
+      multi_page: 顯示所有 %{count} %{model}中的%{from}-%{to} 條
+      multi_page_html: 顯示所有 <b>%{count}</b> %{model}中的<b>%{from}&nbsp;-&nbsp;%{to}</b> 條
       single_page:
-        one:
-        other:
-        zero:
+        one: 顯示 1 %{model}
+        other: 顯示所有 %{count} %{model}
+        zero: 找不到 %{model}
       single_page_html:
-        one:
-        other:
-        zero:
+        one: 顯示 <b>1</b> %{model}
+        other: 顯示 <b>所有 %{count}</b> %{model}
+        zero: 找不到 %{model}

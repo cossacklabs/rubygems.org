@@ -1,12 +1,12 @@
-require 'test_helper'
+require "test_helper"
 
 class Api::V1::RubygemsControllerTest < ActionController::TestCase
   should "route old paths to new controller" do
-    get_route = { controller: 'api/v1/rubygems', action: 'show', id: "rails", format: "json" }
-    assert_recognizes(get_route, '/api/v1/gems/rails.json')
+    get_route = { controller: "api/v1/rubygems", action: "show", id: "rails", format: "json" }
+    assert_recognizes(get_route, "/api/v1/gems/rails.json")
 
-    post_route = { controller: 'api/v1/rubygems', action: 'create' }
-    assert_recognizes(post_route, path: '/api/v1/gems', method: :post)
+    post_route = { controller: "api/v1/rubygems", action: "create" }
+    assert_recognizes(post_route, path: "/api/v1/gems", method: :post)
   end
 
   def self.should_respond_to_show
@@ -31,7 +31,7 @@ class Api::V1::RubygemsControllerTest < ActionController::TestCase
 
     context "with #{format.to_s.upcase} for a hosted gem with a period in its name" do
       setup do
-        @rubygem = create(:rubygem, name: 'foo.rb')
+        @rubygem = create(:rubygem, name: "foo.rb")
         create(:version, rubygem: @rubygem)
         get :show, params: { id: @rubygem.to_param }, format: format
       end
@@ -111,9 +111,9 @@ class Api::V1::RubygemsControllerTest < ActionController::TestCase
         @version = create(:version, rubygem: @rubygem)
 
         @runtime_dependency = create(:dependency, :runtime, version: @version)
-        @runtime_dependency.rubygem.update_column(:name, 'foo')
+        @runtime_dependency.rubygem.update_column(:name, "foo")
         @missing_dependency = create(:dependency, :runtime, version: @version)
-        @missing_dependency.rubygem.update_column(:name, 'missing')
+        @missing_dependency.rubygem.update_column(:name, "missing")
         @missing_dependency.update_column(:rubygem_id, nil)
 
         get :show, params: { id: @rubygem.to_param }, format: "json"
@@ -134,25 +134,25 @@ class Api::V1::RubygemsControllerTest < ActionController::TestCase
     end
 
     should "Returns the response CORS headers" do
-      @request.env['HTTP_ORIGIN'] = 'https://pages.github.com/'
-      get :show, params: { id: "ZenTest" }, format: 'json'
+      @request.env["HTTP_ORIGIN"] = "https://pages.github.com/"
+      get :show, params: { id: "ZenTest" }, format: "json"
 
       assert_equal 200, @response.status
-      assert_equal '*', @response.headers['Access-Control-Allow-Origin']
-      assert_equal 'GET', @response.headers['Access-Control-Allow-Methods']
-      assert_equal '1728000', @response.headers['Access-Control-Max-Age']
+      assert_equal "*", @response.headers["Access-Control-Allow-Origin"]
+      assert_equal "GET", @response.headers["Access-Control-Allow-Methods"]
+      assert_equal "1728000", @response.headers["Access-Control-Max-Age"]
     end
 
-    should 'Send the CORS preflight OPTIONS request' do
-      @request.env['HTTP_ORIGIN'] = 'https://pages.github.com/'
+    should "Send the CORS preflight OPTIONS request" do
+      @request.env["HTTP_ORIGIN"] = "https://pages.github.com/"
       process :show, method: :options, params: { id: "ZenTest" }
 
       assert_equal 200, @response.status
-      assert_equal '*', @response.headers['Access-Control-Allow-Origin']
-      assert_equal 'GET', @response.headers['Access-Control-Allow-Methods']
-      assert_equal 'X-Requested-With, X-Prototype-Version', @response.headers['Access-Control-Allow-Headers']
-      assert_equal '1728000', @response.headers['Access-Control-Max-Age']
-      assert_equal '', @response.body
+      assert_equal "*", @response.headers["Access-Control-Allow-Origin"]
+      assert_equal "GET", @response.headers["Access-Control-Allow-Methods"]
+      assert_equal "X-Requested-With, X-Prototype-Version", @response.headers["Access-Control-Allow-Headers"]
+      assert_equal "1728000", @response.headers["Access-Control-Max-Age"]
+      assert_equal "", @response.body
     end
   end
 
@@ -178,16 +178,17 @@ class Api::V1::RubygemsControllerTest < ActionController::TestCase
         assert_not_nil yield(@response.body)
       end
       should "only return my gems" do
-        gem_names = yield(@response.body).map { |rubygem| rubygem['name'] }.sort
+        gem_names = yield(@response.body).map { |rubygem| rubygem["name"] }.sort
         assert_equal %w[AnotherGem SomeGem], gem_names
       end
     end
   end
 
-  context "with a confirmed user authenticated" do
+  context "with index and push rubygem api key scope" do
     setup do
-      @user = create(:user)
-      @request.env["HTTP_AUTHORIZATION"] = @user.api_key
+      @user = create(:api_key, key: "12345", push_rubygem: true, index_rubygems: true).user
+
+      @request.env["HTTP_AUTHORIZATION"] = "12345"
     end
 
     context "On GET to index" do
@@ -202,7 +203,7 @@ class Api::V1::RubygemsControllerTest < ActionController::TestCase
 
     context "When mfa for UI and API is enabled" do
       setup do
-        @user.enable_mfa!(ROTP::Base32.random_base32, :ui_and_api_mfa)
+        @user.enable_mfa!(ROTP::Base32.random_base32, :ui_and_api)
       end
 
       context "On post to create for new gem without OTP" do
@@ -212,7 +213,7 @@ class Api::V1::RubygemsControllerTest < ActionController::TestCase
         should respond_with :unauthorized
       end
 
-      context "On post to creaete for new gem with incorrect OTP" do
+      context "On post to create for new gem with incorrect OTP" do
         setup do
           @request.env["HTTP_OTP"] = (ROTP::TOTP.new(@user.mfa_seed).now.to_i.succ % 1_000_000).to_s
           post :create, body: gem_file.read
@@ -234,6 +235,30 @@ class Api::V1::RubygemsControllerTest < ActionController::TestCase
       end
     end
 
+    context "When mfa for UI and gem signin is enabled" do
+      setup do
+        @user.enable_mfa!(ROTP::Base32.random_base32, :ui_and_gem_signin)
+      end
+
+      context "On POST to create for new gem" do
+        setup do
+          post :create, body: gem_file.read
+        end
+        should respond_with :success
+        should "register new gem" do
+          assert_equal 1, Rubygem.count
+          assert_equal @user, Rubygem.last.versions.first.pusher
+          assert_equal "Successfully registered gem: test (0.0.0)", @response.body
+        end
+        should "add user as confirmed owner" do
+          ownership = Rubygem.last.ownerships.first
+
+          assert_equal @user, ownership.user
+          assert ownership.confirmed?
+        end
+      end
+    end
+
     context "On POST to create for new gem" do
       setup do
         post :create, body: gem_file.read
@@ -241,32 +266,54 @@ class Api::V1::RubygemsControllerTest < ActionController::TestCase
       should respond_with :success
       should "register new gem" do
         assert_equal 1, Rubygem.count
-        assert_equal @user, Rubygem.last.ownerships.first.user
+        assert_equal @user, Rubygem.last.versions.first.pusher
         assert_equal "Successfully registered gem: test (0.0.0)", @response.body
+      end
+      should "add user as confirmed owner" do
+        ownership = Rubygem.last.ownerships.first
+
+        assert_equal @user, ownership.user
+        assert ownership.confirmed?
       end
     end
 
     context "On POST to create for existing gem" do
-      setup do
-        rubygem = create(:rubygem, name: "test")
-        create(:ownership,
-          rubygem: rubygem,
-          user: @user)
-        create(:version,
-          rubygem: rubygem,
-          number: "0.0.0",
-          updated_at: 1.year.ago,
-          created_at: 1.year.ago)
-        assert_difference 'Delayed::Job.count', 5 do
+      context "with confirmed ownership" do
+        setup do
+          create(:global_web_hook, user: @user, url: "http://example.org")
+          rubygem = create(:rubygem, name: "test")
+          create(:ownership, rubygem: rubygem, user: @user)
+          create(:version, rubygem: rubygem, number: "0.0.0", updated_at: 1.year.ago, created_at: 1.year.ago)
+        end
+        should "respond_with success" do
           post :create, body: gem_file("test-1.0.0.gem").read
+          assert_response :success
+        end
+        should "register new version" do
+          post :create, body: gem_file("test-1.0.0.gem").read
+          assert_equal @user, Rubygem.last.ownerships.first.user
+          assert_equal 1, Rubygem.last.ownerships.count
+          assert_equal 2, Rubygem.last.versions.count
+          assert_equal "Successfully registered gem: test (1.0.0)", @response.body
+        end
+        should "enqueue jobs" do
+          assert_difference "Delayed::Job.count", 7 do
+            post :create, body: gem_file("test-1.0.0.gem").read
+          end
         end
       end
-      should respond_with :success
-      should "register new version" do
-        assert_equal @user, Rubygem.last.ownerships.first.user
-        assert_equal 1, Rubygem.last.ownerships.count
-        assert_equal 2, Rubygem.last.versions.count
-        assert_equal "Successfully registered gem: test (1.0.0)", @response.body
+
+      context "with unconfirmed ownership" do
+        setup do
+          create(:global_web_hook, user: @user, url: "http://example.org")
+          rubygem = create(:rubygem, name: "test")
+          create(:ownership, :unconfirmed, rubygem: rubygem, user: @user)
+          create(:version, rubygem: rubygem, number: "0.0.0", updated_at: 1.year.ago, created_at: 1.year.ago)
+          assert_difference "Delayed::Job.count", 0 do
+            post :create, body: gem_file("test-1.0.0.gem").read
+          end
+        end
+        should respond_with :forbidden
       end
     end
 
@@ -277,13 +324,13 @@ class Api::V1::RubygemsControllerTest < ActionController::TestCase
 
         @date = 1.year.ago
         @version = create(:version,
-          rubygem: rubygem,
-          number: "0.0.0",
-          updated_at: @date,
-          created_at: @date,
-          summary: "Freewill",
-          authors: ["Geddy Lee"],
-          built_at: @date)
+                          rubygem: rubygem,
+                          number: "0.0.0",
+                          updated_at: @date,
+                          created_at: @date,
+                          summary: "Freewill",
+                          authors: ["Geddy Lee"],
+                          built_at: @date)
 
         post :create, body: gem_file.read
       end
@@ -291,8 +338,8 @@ class Api::V1::RubygemsControllerTest < ActionController::TestCase
       should "not register new version" do
         version = Rubygem.last.reload.versions.most_recent
         assert_equal @date.to_s(:db), version.built_at.to_s(:db), "(date)"
-        assert_equal "Freewill", version.summary, '(summary)'
-        assert_equal "Geddy Lee", version.authors, '(authors)'
+        assert_equal "Freewill", version.summary, "(summary)"
+        assert_equal "Geddy Lee", version.authors, "(authors)"
       end
     end
 
@@ -307,10 +354,25 @@ class Api::V1::RubygemsControllerTest < ActionController::TestCase
       end
     end
 
+    context "On POST to create with an underscore or dash variant of an existing gem" do
+      setup do
+        existing = create(:rubygem, name: "t_es-t", downloads: 3002)
+        existing.versions.create(number: "1.0.0", platform: "ruby")
+        post :create, body: gem_file("test-1.0.0.gem").read
+      end
+
+      should respond_with :forbidden
+      should "not register new gem" do
+        assert_equal 1, Rubygem.count
+        assert_equal "There was a problem saving your gem: Name 'test' is too similar to an existing gem named 't_es-t'", @response.body
+      end
+    end
+
     context "On POST to create for someone else's gem" do
       setup do
         @other_user = create(:user)
         @rubygem = create(:rubygem, name: "test", number: "0.0.0", owners: [@other_user])
+        create(:global_web_hook, user: @user, url: "http://example.org")
 
         post :create, body: gem_file("test-1.0.0.gem").read
       end
@@ -319,6 +381,7 @@ class Api::V1::RubygemsControllerTest < ActionController::TestCase
         assert_equal 1, @rubygem.ownerships.size
         assert_equal @other_user, @rubygem.ownerships.first.user
         assert_equal 1, @rubygem.versions.size
+        assert_equal 0, Delayed::Job.count
         assert_includes @response.body, "You do not have permission to push to this gem."
       end
     end
@@ -338,13 +401,13 @@ class Api::V1::RubygemsControllerTest < ActionController::TestCase
       setup do
         rubygem = create(:rubygem, name: "test")
         create(:ownership,
-          rubygem: rubygem,
-          user: @user)
+               rubygem: rubygem,
+               user: @user)
         create(:version,
-          rubygem: rubygem,
-          number: "0.0.0",
-          updated_at: 1.year.ago,
-          created_at: 1.year.ago)
+               rubygem: rubygem,
+               number: "0.0.0",
+               updated_at: 1.year.ago,
+               created_at: 1.year.ago)
       end
       should "POST to create for existing gem should not fail" do
         requires_toxiproxy
@@ -360,43 +423,63 @@ class Api::V1::RubygemsControllerTest < ActionController::TestCase
     end
   end
 
-  context "No signed in-user" do
-    context "On GET to index with JSON for a list of gems" do
+  context "with incorrect api key" do
+    context "on GET to index with JSON for a list of gems without api key" do
       setup do
         get :index, format: "json"
       end
       should "deny access" do
         assert_response 401
         assert_equal "Access Denied. Please sign up for an account at https://rubygems.org",
-          @response.body
+                     @response.body
       end
     end
 
-    %w[json xml yaml].each do |format|
-      context "on GET to show for an unknown gem with #{format} format" do
-        setup do
-          get :show, params: { id: "rials" }, format: format
-        end
+    context "on GET to index without index rubygem scope" do
+      setup do
+        create(:api_key, key: "12345", index_rubygems: false, push_rubygem: true)
+        @request.env["HTTP_AUTHORIZATION"] = "12345"
+        get :index, format: :json
+      end
 
-        should "return a 404" do
-          assert_response :not_found
-        end
+      should respond_with :forbidden
+    end
 
-        should "say gem could not be found" do
-          assert_equal "This rubygem could not be found.", @response.body
-        end
+    context "on POST to create without push rubygem scope" do
+      setup do
+        create(:api_key, key: "12343")
+        @request.env["HTTP_AUTHORIZATION"] = "12343"
+
+        post :create, body: gem_file("test-1.0.0.gem").read
+      end
+      should respond_with :forbidden
+    end
+  end
+
+  %w[json xml yaml].each do |format|
+    context "on GET to show for an unknown gem with #{format} format" do
+      setup do
+        get :show, params: { id: "rials" }, format: format
+      end
+
+      should "return a 404" do
+        assert_response :not_found
+      end
+
+      should "say gem could not be found" do
+        assert_equal "This rubygem could not be found.", @response.body
       end
     end
   end
 
   context "on GET to reverse_dependencies" do
     setup do
-      @dependency   = create(:rubygem)
-      @gem_one      = create(:rubygem)
-      @gem_two      = create(:rubygem)
-      @gem_three    = create(:rubygem)
-      version_one   = create(:version, rubygem: @gem_one)
-      version_two   = create(:version, rubygem: @gem_two)
+      @dependency = create(:rubygem)
+      @gem_one = create(:rubygem)
+      @gem_two = create(:rubygem)
+      @gem_three = create(:rubygem)
+      version_one = create(:version, rubygem: @gem_one)
+      version_two = create(:version, rubygem: @gem_two)
       version_three = create(:version, rubygem: @gem_three)
 
       create(:dependency, :runtime, version: version_one, rubygem: @dependency)
@@ -418,9 +501,9 @@ class Api::V1::RubygemsControllerTest < ActionController::TestCase
     context "with only=development" do
       should "only return names of reverse development dependencies" do
         get :reverse_dependencies,
-          params: { id: @dependency.to_param,
-                    only: "development",
-                    format: "json" }
+            params: { id: @dependency.to_param,
+                      only: "development",
+                      format: "json" }
 
         gems = JSON.load(@response.body)
 
@@ -433,16 +516,16 @@ class Api::V1::RubygemsControllerTest < ActionController::TestCase
     context "with only=runtime" do
       should "only return names of reverse development dependencies" do
         get :reverse_dependencies,
-          params: { id: @dependency.to_param,
-                    only: "runtime",
-                    format: "json" }
+            params: { id: @dependency.to_param,
+                      only: "runtime",
+                      format: "json" }
 
         gems = JSON.load(@response.body)
 
         assert_equal 2, gems.size
 
         assert gems.include?(@gem_one.name)
-        assert gems.include?(@gem_three .name)
+        assert gems.include?(@gem_three.name)
       end
     end
   end

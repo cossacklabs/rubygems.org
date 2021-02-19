@@ -1,7 +1,7 @@
 class ProfilesController < ApplicationController
-  before_action :redirect_to_root, unless: :signed_in?, except: :show
+  before_action :redirect_to_signin, unless: :signed_in?, except: :show
   before_action :verify_password, only: %i[update destroy]
-  helper_method :mfa_enabled?
+  before_action :set_cache_headers, only: :edit
 
   def edit
     @user = current_user
@@ -18,10 +18,10 @@ class ProfilesController < ApplicationController
     @user = current_user.clone
     if @user.update(params_user)
       if @user.unconfirmed_email
-        Mailer.delay.email_reset(current_user)
-        flash[:notice] = t('.confirmation_mail_sent')
+        Delayed::Job.enqueue EmailResetMailer.new(current_user.id)
+        flash[:notice] = t(".confirmation_mail_sent")
       else
-        flash[:notice] = t('.updated')
+        flash[:notice] = t(".updated")
       end
       redirect_to edit_profile_path
     else
@@ -38,18 +38,20 @@ class ProfilesController < ApplicationController
   def destroy
     Delayed::Job.enqueue DeleteUser.new(current_user), priority: PRIORITIES[:profile_deletion]
     sign_out
-    redirect_to root_path, notice: t('.request_queued')
+    redirect_to root_path, notice: t(".request_queued")
   end
 
   private
 
   def params_user
-    params.require(:user).permit(*User::PERMITTED_ATTRS)
+    params.require(:user).permit(:handle, :twitter_username, :unconfirmed_email, :hide_email).tap do |hash|
+      hash.delete(:unconfirmed_email) if hash[:unconfirmed_email] == current_user.email
+    end
   end
 
   def verify_password
     return if current_user.authenticated?(params[:user].delete(:password))
-    flash[:notice] = t('profiles.request_denied')
+    flash[:notice] = t("profiles.request_denied")
     redirect_to edit_profile_path
   end
 end

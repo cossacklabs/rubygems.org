@@ -11,15 +11,13 @@ Rails.application.routes.draw do
     namespace :v2 do
       resources :rubygems, param: :name, only: [], constraints: { name: Patterns::ROUTE_PATTERN } do
         resources :versions, param: :number, only: :show, constraints: {
-          number: /#{Gem::Version::VERSION_PATTERN}(?=\.json\z)|#{Gem::Version::VERSION_PATTERN}/
+          number: /#{Gem::Version::VERSION_PATTERN}(?=\.json\z)|#{Gem::Version::VERSION_PATTERN}(?=\.yaml\z)|#{Gem::Version::VERSION_PATTERN}/
         }
       end
     end
 
     namespace :v1 do
-      resource :api_key, only: :show do
-        put :reset
-      end
+      resource :api_key, only: %i[show create update]
       resource :multifactor_auth, only: :show
       resources :profiles, only: :show
       resources :downloads, only: :index do
@@ -74,7 +72,6 @@ Rails.application.routes.draw do
         end
         collection do
           delete :yank, to: "deletions#create"
-          put :unyank, to: "deletions#destroy"
         end
         constraints rubygem_id: Patterns::ROUTE_PATTERN do
           resource :owners, only: %i[show create destroy]
@@ -111,6 +108,8 @@ Rails.application.routes.draw do
   scope controller: 'api/deprecated', action: 'index' do
     get 'api_key'
     put 'api_key/reset'
+    put 'api/v1/gems/unyank'
+    put 'api/v1/api_key/reset'
 
     post 'gems'
     get 'gems/:id.json'
@@ -118,9 +117,6 @@ Rails.application.routes.draw do
     scope path: 'gems/:rubygem_id' do
       put 'migrate'
       post 'migrate'
-      get 'owners(.:format)'
-      post 'owners(.:format)'
-      delete 'owners(.:format)'
     end
   end
 
@@ -133,47 +129,73 @@ Rails.application.routes.draw do
     resource :dashboard, only: :show, constraints: { format: /html|atom/ }
     resources :profiles, only: :show
     resource :multifactor_auth, only: %i[new create update]
+    resource :settings, only: :edit
     resource :profile, only: %i[edit update] do
       member do
         get :delete
         delete :destroy, as: :destroy
       end
+
+      resources :api_keys do
+        delete :reset, on: :collection
+      end
     end
     resources :stats, only: :index
-    resource :news, path: 'news', only: [:show] do
+    get "/news" => 'news#show', as: 'legacy_news_path'
+    resource :news, path: 'releases', only: [:show] do
       get :popular, on: :collection
     end
+    resource :notifier, only: %i[update show]
 
     resources :rubygems,
-      only: %i[index show edit update],
+      only: %i[index show],
       path: 'gems',
       constraints: { id: Patterns::ROUTE_PATTERN, format: /html|atom/ } do
       resource :subscription,
         only: %i[create destroy],
         constraints: { format: :js },
         defaults: { format: :js }
-      resources :versions, only: %i[show index]
+      resources :versions, only: %i[show index] do
+        get '/dependencies', to: 'dependencies#show', constraints: { format: /json|html/ }
+      end
       resources :reverse_dependencies, only: %i[index]
+      resources :owners, only: %i[index destroy create], param: :handle do
+        get 'confirm', to: 'owners#confirm', as: :confirm, on: :collection
+        get 'resend_confirmation', to: 'owners#resend_confirmation', as: :resend_confirmation, on: :collection
+      end
     end
+
+    ################################################################################
+    # Clearance Overrides and Additions
+
+    resource :email_confirmations, only: %i[new create] do
+      get 'confirm/:token', to: 'email_confirmations#update', as: :update
+      patch 'unconfirmed'
+    end
+
+    resources :passwords, only: %i[new create]
+
+    resource :session, only: %i[create destroy] do
+      post 'mfa_create', to: 'sessions#mfa_create', as: :mfa_create
+      get 'verify', to: 'sessions#verify', as: :verify
+      post 'authenticate', to: 'sessions#authenticate', as: :authenticate
+    end
+
+    resources :users, only: %i[new create] do
+      resource :password, only: %i[create edit update] do
+        post 'mfa_edit', to: 'passwords#mfa_edit', as: :mfa_edit
+      end
+    end
+
+    get '/sign_in' => 'clearance/sessions#new', as: 'sign_in'
+    delete '/sign_out' => 'clearance/sessions#destroy', as: 'sign_out'
+
+    get '/sign_up' => 'users#new', as: 'sign_up' if Clearance.configuration.allow_sign_up?
   end
 
   ################################################################################
-  # Clearance Overrides and Additions
-
-  resource :email_confirmations, only: %i[new create] do
-    get 'confirm/:token', to: 'email_confirmations#update', as: :update
-    patch 'unconfirmed'
-  end
-
-  resource :session, only: %i[create destroy] do
-    post 'mfa_create', to: 'sessions#mfa_create', as: :mfa_create
-  end
-
-  resources :passwords, only: %i[new create]
-
-  resources :users, only: %i[new create] do
-    resource :password, only: %i[create edit update]
-  end
+  # high_voltage static routes
+  get 'pages/*id' => 'high_voltage/pages#show', constraints: { id: /(#{HighVoltage.page_ids.join("|")})/ }, as: :page
 
   ################################################################################
   # Internal Routes
@@ -183,5 +205,7 @@ Rails.application.routes.draw do
     get 'revision' => 'ping#revision'
   end
 
-  get '/sign_up' => 'users#disabled_signup' unless Clearance.configuration.allow_sign_up?
+  ################################################################################
+  # Incoming Webhook Endpoint
+  resources :sendgrid_events, only: :create, format: false, defaults: { format: :json }
 end

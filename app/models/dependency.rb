@@ -1,15 +1,16 @@
 require 'activerecord_acrawriter'
 
 class Dependency < ApplicationRecord
-  belongs_to :rubygem
+  belongs_to :rubygem, optional: true
   belongs_to :version
 
   before_validation :use_gem_dependency,
     :use_existing_rubygem,
     :parse_gem_dependency
 
-  validates :requirements, presence: true
-  validates :scope,        inclusion: { in: %w[development runtime] }
+  validates :requirements, length: { maximum: Gemcutter::MAX_FIELD_LENGTH }, presence: true
+  validates :unresolved_name, length: { maximum: Gemcutter::MAX_FIELD_LENGTH }, allow_blank: true
+  validates :scope, inclusion: { in: %w[development runtime] }
 
   attr_accessor :gem_dependency
 
@@ -25,21 +26,21 @@ class Dependency < ApplicationRecord
   end
 
   def self.development
-    where(scope: 'development')
+    where(scope: "development")
   end
 
   def self.runtime
-    where(scope: 'runtime')
+    where(scope: "runtime")
   end
 
   def name
-    unresolved_name || rubygem.try(:name)
+    unresolved_name || rubygem&.name
   end
 
   def payload
     {
-      'name'         => name,
-      'requirements' => clean_requirements
+      "name"         => name,
+      "requirements" => clean_requirements
     }
   end
 
@@ -48,7 +49,7 @@ class Dependency < ApplicationRecord
   end
 
   def to_xml(options = {})
-    payload.to_xml(options.merge(root: 'dependency'))
+    payload.to_xml(options.merge(root: "dependency"))
   end
 
   def to_yaml(*args)
@@ -101,7 +102,7 @@ class Dependency < ApplicationRecord
   def parse_gem_dependency
     return if requirements
 
-    reqs = gem_dependency.requirements_list.join(', ')
+    reqs = gem_dependency.requirements_list.join(", ")
     self.requirements = clean_requirements(reqs)
 
     self.scope = gem_dependency.type.to_s
